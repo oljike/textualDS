@@ -1,6 +1,6 @@
-from chat import Chat
-from agent import ChatAgent
-from explorer import Explorer
+from chatdev.chat import Chat
+from chatdev.agent import ChatAgent
+from chatdev.explorer import Explorer
 import json
 import types
 import pandas as pd
@@ -11,25 +11,20 @@ import matplotlib.pyplot as plt
 
 class Flow:
 
-    def __init__(self, data, desc=None):
+    def __init__(self, data, columns_desc=None):
+        print(data)
 
-        if 'pkl' in data:
-            with open(data, 'rb') as file:
-                inp = pickle.load(file)
-            self.df = inp[0]
-        else:
-            self.df = pd.read_csv(data)
-
+        self.df = data
         self.columns = self.df.columns
 
-        sys_data = json.load(open('sys_msg.json'))
+        sys_data = json.load(open('/Users/olzhas/PycharmProjects/textualDS/chatdev/sys_msg.json'))
 
-        planner_sys_msg = sys_data['planner'].format(desc='', columns=desc)
+        planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc)
         planner = ChatAgent(planner_sys_msg)
 
         json_format = '''{"explanation": "the explanation of the code", 
                           "function":  "def get_results(df):  python code here"}'''
-        coder_sys_msg = sys_data['coder'].format(desc='', task='', columns=desc, format=json_format)
+        coder_sys_msg = sys_data['coder'].format(desc='', task='', columns=columns_desc, format=json_format)
         coder = ChatAgent(coder_sys_msg, json_format=True)
 
         checker_format = ''' {"explanation": "the explanation of the function validness",
@@ -85,12 +80,12 @@ class Flow:
         while True:
 
             response = self.chatroom.chat(msg, coder_err)
-            print(response)
+            # print(response)
             if 'bad response' in response:
                 coder_err = response
                 continue
 
-            print(response)
+            # print(response)
             dynamic_function = self.create_function(response)
 
             # run new loop, which only fixes some syntaxis errors.
@@ -117,6 +112,7 @@ class Flow:
         # add explanation of the reply
 
         print(result)
+        return result
 
     def check_results(self, result):
         '''
@@ -205,9 +201,9 @@ class Flow:
 
 if __name__=="__main__":
 
-    # data = '../tests/dfs/ecom/ecommerce_customer_data.csv'
-    # explorer = Explorer(data)
-    # init_desc = explorer.init_desc()
+    data = '../tests/dfs/ecom/ecommerce_customer_data.csv'
+    explorer = Explorer(data)
+    init_desc = explorer.init_desc()
 
     data = '../DS-1000-main/ds1000_data/Pandas/Insertion/q0/input/input1.pkl'
     flow = Flow(data, None)

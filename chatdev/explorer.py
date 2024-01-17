@@ -1,11 +1,11 @@
 import os
 import pandas as pd
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "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"
 from openai import OpenAI
 
 class Explorer:
 
-    def __init__(self, path):
+    def __init__(self, df):
         """
         The goal of this class it make data exploration. It accepts the description of the dataset if it exists
         Also, it parses the columns and makes description of them semantically.
@@ -13,11 +13,11 @@ class Explorer:
 
         """
 
-        df = pd.read_csv(path)
+        # df = pd.read_csv(path)
 
         # self.df = df
         self.columns = df.columns
-        self.api_key = "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"
+        self.api_key = "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"
 
         self.client = OpenAI()
 

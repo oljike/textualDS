@@ -2,14 +2,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
 import os
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "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"
 
 class ChatAgent():
 
     def __init__(self, system_message, json_format=False, keep_history=True):
 
         self.system_message = system_message
-        self.api_key = "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"
+        self.api_key = "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"
         self.stored_messages: List = [self.system_message]
         self.client = OpenAI()
         self.json_mode = json_format

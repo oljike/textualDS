@@ -70,6 +70,6 @@ class Chat:
         checker_response = self.checker.step(coder_function)
         checker_result = json.loads(checker_response)
         if checker_result['result']:
-            return coder_function.strip('{').strip('}')
+            return coder_function
         else:
             return 'bad response due to: ' + checker_result['explanation']
