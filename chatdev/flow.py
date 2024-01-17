@@ -2,6 +2,7 @@ from chatdev.chat import Chat
 from chatdev.agent import ChatAgent
 from chatdev.explorer import Explorer
 import json
+import yaml
 import types
 import pandas as pd
 import pickle
@@ -11,32 +12,33 @@ import matplotlib.pyplot as plt
 
 class Flow:
 
-    def __init__(self, data, columns_desc=None):
+    def __init__(self, data, task='', columns_desc=None):
         print(data)
 
         self.df = data
         self.columns = self.df.columns
 
-        sys_data = json.load(open('/Users/olzhas/PycharmProjects/textualDS/chatdev/sys_msg.json'))
+        with open('/Users/olzhas/PycharmProjects/textualDS/chatdev/sys_msg.yaml', 'r') as file:
+            sys_data = yaml.load(file, Loader=yaml.FullLoader)
 
         planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc)
-        planner = ChatAgent(planner_sys_msg)
+        planner = ChatAgent('planner', planner_sys_msg)
 
         json_format = '''{"explanation": "the explanation of the code", 
                           "function":  "def get_results(df):  python code here"}'''
-        coder_sys_msg = sys_data['coder'].format(desc='', task='', columns=columns_desc, format=json_format)
-        coder = ChatAgent(coder_sys_msg, json_format=True)
+        coder_sys_msg = sys_data['coder'].format(desc='', task=task, columns=columns_desc, format=json_format)
+        coder = ChatAgent('coder', coder_sys_msg, json_format=True)
 
         checker_format = ''' {"explanation": "the explanation of the function validness",
                           "result":  "True if valid /False if not valid"}'''
         coder_sys_msg = sys_data['checker'].format(columns=self.columns, format=checker_format)
-        checker = ChatAgent(coder_sys_msg, json_format=True, keep_history=False)
+        checker = ChatAgent('checker', coder_sys_msg, json_format=True, keep_history=False)
 
-        ### small token size LLM which just fixed current function
+        # small token size LLM which just fixed current function
         corrector_format = '''{"explanation": "the explanation of the function error and how to fix it",
                                   "function":  the fixed function }'''
         corrector_sys_msg = sys_data['corrector'].format(format=corrector_format)
-        self.corrector = ChatAgent(corrector_sys_msg, json_format=True, keep_history=False)
+        self.corrector = ChatAgent('corrector', corrector_sys_msg, json_format=True, keep_history=False)
 
         self.chatroom = Chat(coder, planner, checker)
 
@@ -98,12 +100,12 @@ class Flow:
                 except Exception as e:
                     print(str(e))
                     coder_err = str(e)
-                    corrector_inp = {'function': response,
-                                      'error': coder_err}
+                    corrector_inp = {"function": response,
+                                      "error": coder_err}
 
                     corrected_output = self.corrector.step(str(corrector_inp))
-                    corrected_func = json.loads(corrected_output)['function']
-                    print(corrected_func)
+                    corrected_func = json.loads(corrected_output)["function"]
+                    print("corrected_func: ", corrected_func)
                     dynamic_function = self.create_function(corrected_func)
 
             if success:

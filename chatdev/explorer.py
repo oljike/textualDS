@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "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"
 from openai import OpenAI
 
 class Explorer:
@@ -17,7 +17,7 @@ class Explorer:
 
         # self.df = df
         self.columns = df.columns
-        self.api_key = "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"
+        self.api_key = "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"
 
         self.client = OpenAI()
 

@@ -2,14 +2,15 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
 import os
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "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"
 
 class ChatAgent():
 
-    def __init__(self, system_message, json_format=False, keep_history=True):
+    def __init__(self, role, system_message, json_format=False, keep_history=True):
 
+        self.role = role
         self.system_message = system_message
-        self.api_key = "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"
+        self.api_key = "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"
         self.stored_messages: List = [self.system_message]
         self.client = OpenAI()
         self.json_mode = json_format
@@ -43,7 +44,7 @@ class ChatAgent():
         else:
             prompt_input = '\n'.join([self.system_message, input_message])
 
-        print(prompt_input)
+        print('prompt for ' + self.role + ": " + prompt_input)
 
         response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
         response = self.client.chat.completions.create(

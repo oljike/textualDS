@@ -16,7 +16,6 @@ class Chat:
         self.planner = planner
         self.checker = checker
 
-
     @staticmethod
     def extract_python_functions(str_func):
         # Regular expression to match Python-like function definitions
@@ -44,10 +43,7 @@ class Chat:
             final_func = final_func.replace('\\n', '\n').replace('\t', '    ')
             output_funcs.append(final_func)
 
-
-
         return output_funcs
-
 
     def chat(self, msg, coder_err=None):
         '''
@@ -59,14 +55,16 @@ class Chat:
         '''
 
         planner_response = self.planner.step(msg)
+        print('planner_response: ', planner_response)
 
         if coder_err:
-            planner_response += 'Keep in mind that the following error occured in the previous run: ' + coder_err
+            planner_response += 'Keep in mind that the following error occurred in the previous run: ' + coder_err
 
         coder_response = self.coder.step(planner_response)
+        print('coder_response ', coder_response)
         coder_function = json.loads(coder_response)['function']
 
-        ### run checker
+        # run checker
         checker_response = self.checker.step(coder_function)
         checker_result = json.loads(checker_response)
         if checker_result['result']:

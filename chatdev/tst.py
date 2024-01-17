@@ -1,3 +1,10 @@
-formatted_string = f"Hello, my name is {name}, I am {age} years old, and I live in {city}."
+import pandas as pd
 
-st = formatted_string
+import pandas as pd
+import chardet
+
+# Replace 'your_file.csv' with the actual file path
+with open('../datasets/dataanalytics/Instagram data.csv', 'rb') as f:
+    encoding = chardet.detect(f.read())['encoding']
+
+df = pd.read_csv('../datasets/dataanalytics/Instagram data.csv', encoding=encoding)
