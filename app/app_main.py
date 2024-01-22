@@ -65,15 +65,22 @@ def main():
             # Display the bot's response
             if isinstance(bot_response, Image.Image):
                 st.image(bot_response)
+            elif isinstance(bot_response, dict):
+                for k, v in bot_response:
+                    if isinstance(v, Image.Image):
+                        st.write(k)
+                        st.image(v)
+                        bot_response.pop(k, None)
+                st.json(bot_response)
             else:
                 st.write(bot_response)
-
 
 
 # Function to process the uploaded CSV file
 def detect_encoding(file_content):
     result = chardet.detect(file_content)
     return result['encoding']
+
 
 def process_uploaded_file(uploaded_file):
     file_content = uploaded_file.read()
