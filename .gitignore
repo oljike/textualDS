@@ -1,6 +1,8 @@
+.idea/
 *png
 *json
 __pycache__
 data
 datasets/*
 /.ipynb_checkpoints/
+chatdev/api.json

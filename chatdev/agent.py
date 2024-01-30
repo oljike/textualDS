@@ -1,8 +1,6 @@
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
-from openai import OpenAI
-import os
-os.environ["OPENAI_API_KEY"] = "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"
+from openai import OpenAI, AsyncOpenAI
+import json
 
 class ChatAgent():
 
@@ -10,9 +8,12 @@ class ChatAgent():
 
         self.role = role
         self.system_message = system_message
-        self.api_key = "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"
-        self.stored_messages: List = [self.system_message]
-        self.client = OpenAI()
+
+        with open('chatdev/api.json') as f:
+            data = json.load(f)
+            self.api_key = data['openai_api']
+        self.stored_messages: List = [{"role": "system", "content": self.system_message}]
+        self.client = AsyncOpenAI(api_key=self.api_key)
         self.json_mode = json_format
         self.keep_history = keep_history
 
@@ -29,7 +30,36 @@ class ChatAgent():
         self.stored_messages.append(message)
         return self.stored_messages
 
-    def step(self, input_message):
+    def update_user_message(self, message):
+
+        self.stored_messages.append({"role": "user", "content": message})
+        return self.stored_messages
+
+    def update_assistant_message(self, message):
+
+        self.stored_messages.append({"role": "user", "content": message})
+        return self.stored_messages
+
+    async def step_single(self, input_message, task_en):
+        r"""Performs a single step in the chat with accumulating prompt messages.
+        """
+
+        input_prompt = self.stored_messages + [{"role": "user", "content": input_message}]
+
+        print('########## prompt for ' + self.role + ": " + json.dumps(input_prompt))
+        print(self.stored_messages)
+
+        response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
+        response = await self.client.chat.completions.create(
+                                                   model="gpt-4-1106-preview",
+                                                   response_format=response_format,
+                                                   messages=input_prompt,
+                                                   seed=42)
+        response = response.choices[0].message.content
+        print('task {} completed'.format(task_en))
+        return response
+
+    async def step(self, input_message):
 
         r"""Performs a single step in the chat session by generating a response
         to the input message.
@@ -39,18 +69,19 @@ class ChatAgent():
         """
 
         if self.keep_history:
-            messages = self.update_messages(input_message)
-            prompt_input = '\n'.join(messages)
-        else:
-            prompt_input = '\n'.join([self.system_message, input_message])
+            self.update_user_message(input_message)
 
-        print('prompt for ' + self.role + ": " + prompt_input)
+        print('########## prompt for ' + self.role + ": " + json.dumps(self.stored_messages))
 
         response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
-        response = self.client.chat.completions.create(
+        response = await self.client.chat.completions.create(
                                                    model="gpt-4-1106-preview",
                                                    response_format=response_format,
-                                                   messages=[{"role": "user", "content": prompt_input}],
+                                                   messages=self.stored_messages,
                                                    seed=42)
+        response = response.choices[0].message.content
 
-        return response.choices[0].message.content
+        if self.keep_history:
+            self.update_assistant_message(response)
+
+        return response

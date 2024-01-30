@@ -1,10 +1,10 @@
 import json
 import re
-
+import asyncio
 
 class Chat:
 
-    def __init__(self, coder, planner, checker):
+    def __init__(self, agents):
         '''
         we need task_prompt to initilize the coder and planner agents
         :param task_prompt:
@@ -12,9 +12,9 @@ class Chat:
         planner: the llm initialised with planner system message
         '''
 
-        self.coder = coder
-        self.planner = planner
-        self.checker = checker
+        for agent in agents:
+            setattr(self, agent.role, agent)
+
 
     @staticmethod
     def extract_python_functions(str_func):
@@ -45,7 +45,7 @@ class Chat:
 
         return output_funcs
 
-    def chat(self, msg, coder_err=None):
+    async def chat(self, task, coder_err=None):
         '''
         how chatting of single message happens?
         the message is passed to a planner. he provides a detailed plan which is a number list.
@@ -54,20 +54,32 @@ class Chat:
         :return:
         '''
 
-        planner_response = self.planner.step(msg)
-        print('planner_response: ', planner_response)
+        planner_response = await self.planner.step(task)
+        print('########## planner_response: ', planner_response)
 
-        if coder_err:
-            planner_response += 'Keep in mind that the following error occurred in the previous run: ' + coder_err
+        # if coder_err:
+        #     planner_response += 'Keep in mind that the following error occurred in the previous run: ' + coder_err
 
-        coder_response = self.coder.step(planner_response)
-        print('coder_response ', coder_response)
-        coder_function = json.loads(coder_response)['function']
+        # now we need to add the AsyncIO operation here
+        plan_list = json.loads(planner_response)['plan']
+        # code_outputs = []
+        # for pi in plan_list:
+        #     coder_response = await self.coder_base.step_single(pi)
+        #     code_outputs.append(coder_response)
 
+        code_outputs = []
+        coroutines = [self.coder_base.step_single(pi, en) for en, pi in enumerate(plan_list)]
+        coder_responses = await asyncio.gather(*coroutines)
+        code_outputs.extend(coder_responses)
+
+        # coder_response = self.coder.step(planner_response)
+        coder_agg_response = await self.coder_agg.step(planner_response)
+        print('########## coder_response ', coder_agg_response)
+        json_res = json.loads(coder_agg_response)
+        coder_function = json_res['function']
+        return coder_function
         # run checker
-        checker_response = self.checker.step(coder_function)
-        checker_result = json.loads(checker_response)
-        if checker_result['result']:
-            return coder_function
-        else:
-            return 'bad response due to: ' + checker_result['explanation']
+        # checker_response = self.checker.step(coder_function)
+        # checker_result = json.loads(checker_response)
+        # return {'valid': checker_result['result'], 'func': coder_function, 'explanation': checker_result['explanation']}
+

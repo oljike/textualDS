@@ -1,7 +1,8 @@
 import os
 import pandas as pd
-os.environ["OPENAI_API_KEY"] = "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"
+# os.environ["OPENAI_API_KEY"] = "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"
 from openai import OpenAI
+import json
 
 class Explorer:
 
@@ -12,14 +13,13 @@ class Explorer:
         It also can parse the some random table cells to understand what can be expected in there.
 
         """
-
-        # df = pd.read_csv(path)
-
-        # self.df = df
         self.columns = df.columns
-        self.api_key = "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"
+        with open('chatdev/api.json') as f:
+            data = json.load(f)
+            print(data)
+            self.api_key = data['openai_api']
 
-        self.client = OpenAI()
+        self.client = OpenAI(api_key=self.api_key)
 
     def run(self, desc):
 

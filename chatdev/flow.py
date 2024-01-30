@@ -5,42 +5,53 @@ import json
 import yaml
 import types
 import pandas as pd
-import pickle
 import matplotlib
 matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
+matplotlib.use('agg')
+
 
 class Flow:
 
-    def __init__(self, data, task='', columns_desc=None):
+    def __init__(self, data, columns_desc=None):
         print(data)
 
         self.df = data
         self.columns = self.df.columns
 
-        with open('/Users/olzhas/PycharmProjects/textualDS/chatdev/sys_msg.yaml', 'r') as file:
+        with open('chatdev/sys_msg.yaml', 'r') as file:
             sys_data = yaml.load(file, Loader=yaml.FullLoader)
 
-        planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc)
-        planner = ChatAgent('planner', planner_sys_msg)
+        planner_format = '''{"description": "the description of the plan", 
+                          "plan":  "the numbered list plan"}'''
+        planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc, format=planner_format)
+        planner = ChatAgent('planner', planner_sys_msg, json_format=True, keep_history=True)
 
         json_format = '''{"explanation": "the explanation of the code", 
                           "function":  "def get_results(df):  python code here"}'''
-        coder_sys_msg = sys_data['coder'].format(desc='', task=task, columns=columns_desc, format=json_format)
-        coder = ChatAgent('coder', coder_sys_msg, json_format=True)
+        coder_sys_msg = sys_data['coder'].format(columns=columns_desc, format=json_format)
+        coder = ChatAgent('coder', coder_sys_msg, json_format=True, keep_history=True)
+
+        coder_base_format = '''{"explanation": "the explanation of the code", 
+                                "code":  "python code here"}'''
+        coder_base_sys_msg = sys_data['coder_base'].format(columns=columns_desc, format=coder_base_format)
+        coder_base = ChatAgent('coder_base', coder_base_sys_msg, json_format=True, keep_history=False)
+
+        coder_agg_format = '''{"explanation": "the explanation of the code", 
+                                "function":  "def get_results(df):  python code here"}'''
+        coder_agg_sys_msg = sys_data['coder_agg'].format(columns=columns_desc, format=coder_agg_format)
+        coder_agg = ChatAgent('coder_agg', coder_agg_sys_msg, json_format=True, keep_history=False)
 
         checker_format = ''' {"explanation": "the explanation of the function validness",
                           "result":  "True if valid /False if not valid"}'''
         coder_sys_msg = sys_data['checker'].format(columns=self.columns, format=checker_format)
-        checker = ChatAgent('checker', coder_sys_msg, json_format=True, keep_history=False)
+        checker = ChatAgent('checker', coder_sys_msg, json_format=True, keep_history=True)
 
         # small token size LLM which just fixed current function
         corrector_format = '''{"explanation": "the explanation of the function error and how to fix it",
                                   "function":  the fixed function }'''
-        corrector_sys_msg = sys_data['corrector'].format(format=corrector_format)
-        self.corrector = ChatAgent('corrector', corrector_sys_msg, json_format=True, keep_history=False)
-
-        self.chatroom = Chat(coder, planner, checker)
+        corrector_sys_msg = sys_data['corrector'].format(columns=self.columns, format=corrector_format)
+        self.corrector = ChatAgent('corrector', corrector_sys_msg, json_format=True, keep_history=True)
+        self.chatroom = Chat([coder, planner, checker, coder_base, coder_agg])
 
     @staticmethod
     def create_function(func_str, func_name='get_results', import_libraries=['numpy as np', 'pandas as pd',
@@ -50,7 +61,8 @@ class Flow:
 
         # Combine import statements, function string, and a call to locals()
         imports = "\n".join(f"import {library}" for library in import_libraries) if import_libraries else ""
-        tkagg = "matplotlib.use('TkAgg')"
+        tkagg = "matplotlib.use('agg')"
+        # inline = "%matplotlib inline"
         full_code = f"{imports}\n{tkagg}\n{func_str}"
 
         # Use exec to execute the combined code within the namespace
@@ -64,8 +76,7 @@ class Flow:
 
         return created_func
 
-
-    def flow(self, msg):
+    async def flow(self, msg):
 
         '''
         This function hold the flow of the chat. If normal function is generated, then it is executed.
@@ -77,39 +88,41 @@ class Flow:
         '''
 
         coder_err = None
-        success = False
-        terminated = False
+        # while True:
+
+        chatroom_resp = await self.chatroom.chat(msg, coder_err)
+        # if not chatroom_resp['valid']:
+        #     # if it function has some error we iterate back to the chatroom
+        #     coder_err = chatroom_resp['explanation']
+        #     continue
+        print("######## chatroom response: ", chatroom_resp)
+
+        # run new loop, which only fixes some syntaxis errors.
+        # the while true loop has to be substituted by some stopping criteria.
+        function_resp = chatroom_resp #['func']
+        gen_en = 0
         while True:
-
-            response = self.chatroom.chat(msg, coder_err)
-            # print(response)
-            if 'bad response' in response:
-                coder_err = response
-                continue
-
-            # print(response)
-            dynamic_function = self.create_function(response)
-
-            # run new loop, which only fixes some syntaxis errors.
-            # the while true loop has to be substituted by some stopping criteria.
-            while True:
-                try:
-                    result = dynamic_function(self.df)
-                    success = True
-                    break
-                except Exception as e:
-                    print(str(e))
-                    coder_err = str(e)
-                    corrector_inp = {"function": response,
-                                      "error": coder_err}
-
-                    corrected_output = self.corrector.step(str(corrector_inp))
-                    corrected_func = json.loads(corrected_output)["function"]
-                    print("corrected_func: ", corrected_func)
-                    dynamic_function = self.create_function(corrected_func)
-
-            if success:
+            print("######## gen_en", gen_en)
+            if gen_en > 5:
+                result = 'Impossible to generate result. Please, reformulate the task or make it more specific.'
                 break
+            gen_en += 1
+
+            try:
+                dynamic_function = self.create_function(function_resp)
+                result = dynamic_function(self.df)
+                break
+            except Exception as e:
+                coder_err = str(e)
+                print('########## error exception: ', coder_err)
+                corrector_inp = {"function": function_resp, "error": coder_err}
+                corrector_output = self.corrector.step(str(corrector_inp))
+                function_resp = json.loads(corrector_output)["function"]
+                print('########## corrector_response: ', corrector_output)
+                print("########## corrected_func: ", function_resp)
+
+            # if success:
+            #     break
 
         # add explanation of the reply
 
@@ -126,7 +139,6 @@ class Flow:
 
         if isinstance(result, pd.DataFrame):
             return True
-
 
     def flow_beta(self, prompt):
         '''
@@ -201,24 +213,25 @@ class Flow:
         final_output = self.chatroom.manager.step(code_outputs)
 
 
+async def handle_execution(flow, prompt):
+
+    # Call the async flow method
+    bot_response = await flow.flow(prompt)
+    # Store the flow object in session state
+    return bot_response, flow
+
+
 if __name__=="__main__":
 
-    data = '../tests/dfs/ecom/ecommerce_customer_data.csv'
-    explorer = Explorer(data)
-    init_desc = explorer.init_desc()
+    import pandas as pd
+    data = pd.read_csv('./datasets/dataanalytics/market_basket_dataset.csv')
+    # explorer = Explorer(data)
+    init_desc = ""#explorer.init_desc()
 
-    data = '../DS-1000-main/ds1000_data/Pandas/Insertion/q0/input/input1.pkl'
-    flow = Flow(data, None)
-    flow.flow('''
-             'The DataFrame is read from a CSV file. All rows which have Type 1 are on top, followed by the rows with Type 2, followed by the rows with Type 3, etc.\n',
-             "I would like to shuffle the order of the DataFrame's rows according to a list. \\\n",
-             'For example, give a list [2, 4, 0, 3, 1, 5] and desired result should be:\n',
-             '    Col1  Col2  Col3  Type\n',
-             '2      7     8     9     2\n',
-             '4     13    14    15     3\n',
-             '0     1     2     3     1\n',
-             '3    10    11    12     2\n',
-             '1     4     5     6     1\n',
-             '5    16    17    18     3\n',
-             '...\n',
-            'How can I achieve this?''')
+    init_desc = f"This is the result of the explore function using dataset: {data.columns}."
+    prompt = "make a customer behavior analysis"
+    flow = Flow(data, init_desc)
+    # flow.flow()
+
+    import asyncio
+    asyncio.run(handle_execution(flow, prompt))
