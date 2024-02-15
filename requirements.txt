@@ -1,4 +1,1 @@
-opencv-python
-matplotlib
-numpy
-openai
+st-supabase-connection

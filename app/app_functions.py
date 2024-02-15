@@ -2,13 +2,38 @@ import pandas as pd
 import chardet
 import io
 import yaml
+import streamlit as st
+import base64
+
+def set_bg_hack(main_bg):
+    '''
+    A function to unpack an image from root folder and set as bg.
+    The bg will be static and won't take resolution of device into account.
+    Returns
+    -------
+    The background.
+    '''
+    # set bg name
+    main_bg_ext = "png"
+
+    st.markdown(
+        f"""
+         <style>
+         .stApp {{
+             background: url(data:image/{main_bg_ext};base64,{base64.b64encode(open(main_bg, "rb").read()).decode()});
+             background-size: cover
+         }}
+         </style>
+         """,
+        unsafe_allow_html=True
+    )
 
 async def handle_execution(flow, prompt):
 
     # Call the async flow method
-    bot_response = await flow.flow(prompt)
+    bot_response, dynamic_function = await flow.flow(prompt)
     # Store the flow object in session state
-    return bot_response, flow
+    return bot_response, dynamic_function, flow
 
 
 def process_user_input(user_input, flow):
@@ -66,3 +91,23 @@ def process_uploaded_file(uploaded_file):
 def explore_function(dataset):
     # Replace this with your explore function logic using the selected dataset
     return f"{', '.join(dataset.columns)}"
+
+
+def display_app_header(main_txt, sub_txt, is_sidebar=False):
+    """
+    function to display major headers at user interface
+    ----------
+    main_txt: str -> the major text to be displayed
+    sub_txt: str -> the minor text to be displayed
+    is_sidebar: bool -> check if its side panel or major panel
+    """
+
+    html_temp = f"""
+    <h2 style = "color:#FF7F50; text_align:center; font-weight: bold;"> {main_txt} </h2>
+    <p style = "color:#BB1D3F; text_align:center;"> {sub_txt} </p>
+    </div>
+    """
+    if is_sidebar:
+        st.sidebar.markdown(html_temp, unsafe_allow_html = True)
+    else:
+        st.markdown(html_temp, unsafe_allow_html = True)

@@ -1,9 +1,15 @@
+import sys
+from os.path import abspath, join, dirname
+app_path = abspath(join(dirname(__file__), '..'))
+sys.path.append(app_path)
+
 from chatdev.chat import Chat
 from chatdev.agent import ChatAgent
 from chatdev.explorer import Explorer
 import json
 import yaml
 import types
+import asyncio
 import pandas as pd
 import matplotlib
 matplotlib.use('TkAgg')
@@ -12,8 +18,7 @@ matplotlib.use('agg')
 
 class Flow:
 
-    def __init__(self, data, columns_desc=None):
-        print(data)
+    def __init__(self, data, columns_desc=None, ds_name=""):
 
         self.df = data
         self.columns = self.df.columns
@@ -21,40 +26,34 @@ class Flow:
         with open('chatdev/sys_msg.yaml', 'r') as file:
             sys_data = yaml.load(file, Loader=yaml.FullLoader)
 
-        planner_format = '''{"description": "the description of the plan", 
-                          "plan":  "the numbered list plan"}'''
+        planner_format = '''{"description":"the description of the plan","plan":"the numbered list plan"}'''
         planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc, format=planner_format)
         planner = ChatAgent('planner', planner_sys_msg, json_format=True, keep_history=True)
 
-        json_format = '''{"explanation": "the explanation of the code", 
-                          "function":  "def get_results(df):  python code here"}'''
+        json_format = '''{"explanation": "the explanation of the code", "function":  "def get_results(df):  python code here"}'''
         coder_sys_msg = sys_data['coder'].format(columns=columns_desc, format=json_format)
         coder = ChatAgent('coder', coder_sys_msg, json_format=True, keep_history=True)
 
-        coder_base_format = '''{"explanation": "the explanation of the code", 
-                                "code":  "python code here"}'''
-        coder_base_sys_msg = sys_data['coder_base'].format(columns=columns_desc, format=coder_base_format)
-        coder_base = ChatAgent('coder_base', coder_base_sys_msg, json_format=True, keep_history=False)
+        coder_base_format = '''{"explanation": "the explanation of the code", "code":  "python code here"}'''
+        coder_base_sys_msg = sys_data['coderBase'].format(columns=columns_desc, format=coder_base_format)
+        coder_base = ChatAgent('coder_base', coder_base_sys_msg, json_format=True, keep_history=True)
 
-        coder_agg_format = '''{"explanation": "the explanation of the code", 
-                                "function":  "def get_results(df):  python code here"}'''
-        coder_agg_sys_msg = sys_data['coder_agg'].format(columns=columns_desc, format=coder_agg_format)
-        coder_agg = ChatAgent('coder_agg', coder_agg_sys_msg, json_format=True, keep_history=False)
+        coder_agg_format = '''{"description": "short description of the code",  "function":  "def get_results(df):  python code here"}'''
+        coder_agg_sys_msg = sys_data['coderAgg'].format(columns=columns_desc, format=coder_agg_format)
+        coder_agg = ChatAgent('coder_agg', coder_agg_sys_msg, json_format=True, keep_history=True)
 
-        checker_format = ''' {"explanation": "the explanation of the function validness",
-                          "result":  "True if valid /False if not valid"}'''
+        checker_format = ''' {"explanation": "the explanation of the function validness", "result":  "True if valid /False if not valid"}'''
         coder_sys_msg = sys_data['checker'].format(columns=self.columns, format=checker_format)
         checker = ChatAgent('checker', coder_sys_msg, json_format=True, keep_history=True)
 
         # small token size LLM which just fixed current function
-        corrector_format = '''{"explanation": "the explanation of the function error and how to fix it",
-                                  "function":  the fixed function }'''
+        corrector_format = '''{"explanation": "the explanation of the function error and how to fix it", "function":  the fixed function }'''
         corrector_sys_msg = sys_data['corrector'].format(columns=self.columns, format=corrector_format)
         self.corrector = ChatAgent('corrector', corrector_sys_msg, json_format=True, keep_history=True)
-        self.chatroom = Chat([coder, planner, checker, coder_base, coder_agg])
+        self.chatroom = Chat([coder, planner, checker, coder_base, coder_agg], ds_name)
 
     @staticmethod
-    def create_function(func_str, func_name='get_results', import_libraries=['numpy as np', 'pandas as pd',
+    def create_function(func_str, func_name='get_results', import_libraries=['numpy as np', 'json', 'pandas as pd',
                                                                              'matplotlib.pyplot as plt', 'matplotlib']):
         # Create a namespace for the function
         namespace = {}
@@ -88,18 +87,11 @@ class Flow:
         '''
 
         coder_err = None
-        # while True:
-
-        chatroom_resp = await self.chatroom.chat(msg, coder_err)
-        # if not chatroom_resp['valid']:
-        #     # if it function has some error we iterate back to the chatroom
-        #     coder_err = chatroom_resp['explanation']
-        #     continue
-        print("######## chatroom response: ", chatroom_resp)
+        function_resp = await self.chatroom.chat(msg, coder_err)
+        print("######## chatroom response: ", function_resp)
 
         # run new loop, which only fixes some syntaxis errors.
         # the while true loop has to be substituted by some stopping criteria.
-        function_resp = chatroom_resp #['func']
         gen_en = 0
         while True:
             print("######## gen_en", gen_en)
@@ -127,7 +119,7 @@ class Flow:
         # add explanation of the reply
 
         print(result)
-        return result
+        return result, dynamic_function
 
     def check_results(self, result):
         '''
@@ -228,10 +220,10 @@ if __name__=="__main__":
     # explorer = Explorer(data)
     init_desc = ""#explorer.init_desc()
 
-    init_desc = f"This is the result of the explore function using dataset: {data.columns}."
+    init_desc = f"{', '.join(data.columns)}."
     prompt = "make a customer behavior analysis"
+    # prompt = "name 10 most popular items sold by the store"
     flow = Flow(data, init_desc)
     # flow.flow()
 
-    import asyncio
     asyncio.run(handle_execution(flow, prompt))

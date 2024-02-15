@@ -1,3 +1,7 @@
+chatdev/test.py
+*.out
+*.dat
+.streamlit
 .idea/
 *png
 *json
