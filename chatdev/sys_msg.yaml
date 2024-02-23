@@ -7,13 +7,21 @@ You need to understand if the given task is relevant to the dataframe and is pos
 IMPORTANT: Return a valid JSON object in the following format: {format}."
 
 
+"taskClassifier": "There is a dataframe with the following columns: {columns}.
+Your goal is categorize the difficulty of user input task related the dataframe into one of three categories: easy, medium, hard.
+You need to categorize the task in terms of implementing it in python, like the number of lines of code, its complexity and so on.
+If the user task is hard, divide it into several easy/medium subtasks (maximum 3) which can be run independently.
+The new task must be summarizing or explainable, like a metric which gives some insight about the data.
+IMPORTANT: Return a valid JSON object in the following format: {format}."
+
+
 "planner": "You are an expert in data analysis and data science. You have been handed a DataFrame for analysis.
 The DataFrame is already loaded and is called df.
 If provided, it comes with the following description: {desc}. Additionally,
 it contains the following columns and their corresponding descriptions: {columns}.
 The user has assigned you a task. Considering the provided information,
 your objective is to construct a comprehensive plan detailing how to address the task using Python.
-Each step of the plan should be structured as a numbered list. Make no more than 10 items in the list.
+Each step of the plan should be structured as a numbered list. Make no more than 3 items in the list.
 In cases where the solution involves visualizations, refrain from utilizing a graphical user interface
 or saving them as files; instead, convert visualizations to Pillow images and return as function output.
 Your plan must meticulously explain each step.
@@ -50,10 +58,19 @@ IMPORTANT: Return a valid JSON object in the following format: {format}."
 #Do not skip any step or leave as comment. All of the code is important.
 #IMPORTANT: Return a valid JSON object in the following format: {format}. "
 
+#
+#"coderAgg": "You are tasked with combining multiple Python code snippets into a cohesive single flow.
+#Your goal is to merge the provided code snippets without duplicating any code
+#while ensuring that each snippet is included and executed in the appropriate sequence.
+#You need to add each new code into function called def get_results(df). The dataframe df is already provided.
+#IMPORTANT: Return a valid JSON object in the following format: {format}. "
+
 "coderAgg": "You are tasked with combining multiple Python code snippets into a cohesive single flow.
-Your goal is to merge the provided code snippets without duplicating any code
-while ensuring that each snippet is included and executed in the appropriate sequence.
-You need to add each new code into function called def get_results(df). The dataframe df is already provided.
+Your goal is to merge the provided code snippets without duplicating any code while ensuring that each
+snippet is included and executed in the appropriate sequence. All code must be unified under single function called def get_results(df).
+The dataframe df is already provided.
+Function must save plots to a directory called './plots/name_of_the_plot.png' and return the path of the plot.
+The tabular or numerical must be returned as dataframes.
 IMPORTANT: Return a valid JSON object in the following format: {format}. "
 
 
@@ -73,3 +90,7 @@ Your objective is to troubleshoot and correct the error in the function,
 ensuring that the final function remains executable in Python.
 IMPORTANT: The corrected function must be valid Python code and executable.
 Return the result in the following format: {format}"
+
+"analyzer": "Your goal is to inteprete the data analysis task that was given by user. You need the importance, meaning,
+ how it is used in business and why it is useful. Also, you need to relate it the data columns which will be provided.
+ Be short and clear, no more than 5 sentences."

@@ -1,0 +1,2477 @@
+Demand and supply analysis:
+  calculate and visualise supply ratio:
+    time: 49.03713297843933
+    agg: |
+
+      def get_results(df):
+
+          import pandas as pd
+          import numpy as np
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          import io
+          import json
+
+          # Check if 'Drivers Active Per Hour' and 'Riders Active Per Hour' are numeric, and convert them if they are not
+          if df['Drivers Active Per Hour'].dtype not in [np.float64, np.int64]:
+              df['Drivers Active Per Hour'] = df['Drivers Active Per Hour'].astype(float)
+
+          if df['Riders Active Per Hour'].dtype not in [np.float64, np.int64]:
+              df['Riders Active Per Hour'] = df['Riders Active Per Hour'].astype(float)
+
+          # Calculate 'Supply Ratio'
+          df['Supply Ratio'] = df['Drivers Active Per Hour'] / df['Riders Active Per Hour']
+
+          # Replace positive and negative inf with NaN
+          df['Supply Ratio'] = df['Supply Ratio'].replace([np.inf, -np.inf], np.nan)
+
+          # Compute descriptive statistics
+          descriptive_stats = df['Supply Ratio'].describe()
+
+          # Convert descriptive statistics to JSON and return
+          result = {'descriptive_analysis': descriptive_stats.to_json()}
+
+          # Plot histogram and convert plot to PIL Image
+          plt.figure()
+          plt.hist(df['Supply Ratio'].dropna(), bins=20, color='blue', edgecolor='black')
+          plt.xlabel('Supply Ratio')
+          plt.ylabel('Frequency')
+          plt.title('Histogram of Supply Ratio')
+
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+          plt.close()
+
+          # Save the plot to a BytesIO object in memory
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+
+          # Convert BytesIO object to Pillow Image
+          image = Image.open(buf)
+
+          # Clean up buffer
+          buf.close()
+
+          return df, image
+Market Basket Analysis:
+  make a customer behavior analysis:
+    time: 51.85566306114197
+    agg: |
+      def get_results(df):
+
+          import pandas as pd
+          from sklearn.cluster import KMeans
+          from sklearn.preprocessing import StandardScaler
+          from matplotlib import pyplot as plt
+          from PIL import Image
+          import seaborn as sns
+          import io
+
+          def explore_dataframe(df):
+
+              # Checking the shape of the DataFrame
+              df_shape = df.shape
+
+
+              # Counting missing values per column
+              missing_values = df.isnull().sum()
+
+              # Checking data types of each column
+              data_types = df.dtypes
+
+              # Preparing the result
+              result = {'explanation': 'The function returns the shape of the DataFrame, counts of missing values per column, and data types of each column to ensure they are appropriate for further analysis. Specifically, it is critical to confirm that `Price` and `Quantity` are numeric.', 'data': {'shape': df_shape, 'missing_values': missing_values, 'data_types': data_types}}
+              return result
+
+          def clean_data(df):
+              # Impute missing values
+              # For illustration, filling missing 'Itemname' with 'Unknown'
+              df['Itemname'].fillna('Unknown', inplace=True)
+
+              # For numerical columns like 'Quantity' and 'Price', fill missing values with their median
+              df['Quantity'].fillna(df['Quantity'].median(), inplace=True)
+              df['Price'].fillna(df['Price'].median(), inplace=True)
+
+              # For 'CustomerID', if there are missing values, fill them with placeholder
+              df['CustomerID'].fillna('Unknown', inplace=True)
+
+              # Convert CustomerID to category dtype
+              df['CustomerID'] = df['CustomerID'].astype('category')
+
+              # Return the cleaned DataFrame
+              return df
+
+          def compute_spending_patterns(df):
+                    daily_spend = df.set_index('Date').groupby('CustomerID').resample('D')['TotalSpend'].sum().reset_index()
+                    weekly_spend = df.set_index('Date').groupby('CustomerID').resample('W')['TotalSpend'].sum().reset_index()
+                    monthly_spend = df.set_index('Date').groupby('CustomerID').resample('M')['TotalSpend'].sum().reset_index()
+
+                    return {
+                        'daily_spend': daily_spend.to_json(orient='split', date_format='iso'),
+                        'weekly_spend': weekly_spend.to_json(orient='split', date_format='iso'),
+                        'monthly_spend': monthly_spend.to_json(orient='split', date_format='iso')
+                    }
+
+          def visualize_item_popularity(df):
+              item_popularity = df.groupby('Itemname')['Quantity'].sum().reset_index()
+              item_popularity = item_popularity.sort_values('Quantity', ascending=False)
+
+              plt.figure(figsize=(10, 6))
+              sns.barplot(data=item_popularity, x='Quantity', y='Itemname')
+              plt.title('Item Popularity based on Quantity Sold')
+              plt.xlabel('Total Quantity Sold')
+              plt.ylabel('Item Name')
+              plt.savefig('item_popularity.png')
+              plt.close()
+
+          def summarize_customer_insights(df):
+              spending_habits_summary = 'Customers tend to spend more on weekends, with a significant portion of spending concentrated on luxury items.'
+              preferred_items_summary = 'The most preferred items are Organic Produce and Artisan Breads, indicating a trend towards health-conscious and gourmet choices.'
+              customer_segments_summary = 'Three main customer segments identified: Value Shoppers, Regulars, and High Spenders, each with distinct shopping patterns and preferences.'
+
+              insights_report = f"""Customer Behavior Insights:
+
+          Spending Habits:
+          {spending_habits_summary}
+
+          Preferred Items:
+          {preferred_items_summary}
+
+          Customer Segments:
+          {customer_segments_summary}"""
+
+              print(insights_report)
+              return insights_report
+
+
+          # Clean the data
+          df = clean_data(df)
+
+          # Create a separate DataFrame for 'TotalAmount'
+          df_total_amount = df.copy()
+          df_total_amount['TotalAmount'] = df_total_amount['Quantity'] * df_total_amount['Price']
+
+          # Create summary DataFrame based on 'CustomerID'
+          summary_df = df_total_amount.groupby('CustomerID').agg(TotalAmountSpent=('TotalAmount', 'sum'),
+                                                                  TotalQuantity=('Quantity', 'sum'),
+                                                                  TransactionCount=('BillNo', 'nunique')).reset_index()
+
+          # Create separate DataFrame for item popularity
+          item_popularity = df.groupby('Itemname').agg(Total_Quantity=('Quantity', 'sum'), Transactions=('BillNo', 'nunique')).reset_index()
+          most_popular_by_quantity = item_popularity.sort_values('Total_Quantity', ascending=False).head(1)
+          least_popular_by_quantity = item_popularity.sort_values('Total_Quantity').head(1)
+          most_popular_by_transactions = item_popularity.sort_values('Transactions', ascending=False).head(1)
+          least_popular_by_transactions = item_popularity.sort_values('Transactions').head(1)
+          results = pd.concat([most_popular_by_quantity, least_popular_by_quantity, most_popular_by_transactions, least_popular_by_transactions])
+
+          # Normalize data and perform clustering
+          customer_df = summary_df[['TotalAmountSpent', 'TransactionCount']]
+          data_scaled = StandardScaler().fit_transform(customer_df)
+          inertias = []
+          for k in range(1, 11):
+              kmeans = KMeans(n_clusters=k, random_state=42).fit(data_scaled)
+              inertias.append(kmeans.inertia_)
+
+          plt.figure(figsize=(8, 4))
+          plt.plot(range(1, 11), inertias, marker='o')
+          plt.title('Elbow Method')
+          plt.xlabel('Number of clusters')
+          plt.ylabel('Inertia')
+
+          canvas = io.BytesIO()
+          plt.savefig(canvas, format='png')
+          plt.close()
+          canvas.seek(0)
+          elbow_plot = Image.open(canvas)
+
+          n_clusters = 4
+          kmeans = KMeans(n_clusters=n_clusters, random_state=42).fit(data_scaled)
+          summary_df['Cluster'] = kmeans.labels_
+
+          # Resample to daily, weekly, and monthly spends by customer
+          df['Date'] = pd.to_datetime(df['Date'])
+          df['TotalSpend'] = df['Quantity'] * df['Price']
+          spending_patterns = compute_spending_patterns(df)
+
+          # Visualize item popularity
+          visualize_item_popularity(df)
+
+          # Summarize customer insights
+          insights_report = summarize_customer_insights(df)
+
+          # Generate summary DataFrame showing total sales per customer
+          df['TotalSales'] = df['Quantity'] * df['Price']
+          sales_summary = df.groupby('CustomerID')['TotalSales'].sum().reset_index()
+
+          # Generate visualization of sales per customer using matplotlib
+          fig, ax = plt.subplots()
+          sales_summary.plot(kind='bar', x='CustomerID', y='TotalSales', ax=ax, title='Total Sales per Customer')
+          plt.tight_layout()
+
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img = Image.open(buf)
+
+          result = {
+              'explore_dataframe': explore_dataframe(df),
+              'summary_df': summary_df,
+              'results_json': results.to_json(orient='records'),
+              'elbow_plot': elbow_plot,
+              'spending_patterns': spending_patterns,
+              'insights_report': insights_report,
+              'sales_summary': sales_summary.to_json(),
+              'sales_visualization': img
+          }
+
+          return result
+  use Apriori algorithm to create association rules:
+    time: 13238.730656862259
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          from mlxtend.frequent_patterns import apriori, association_rules, TransactionEncoder
+          from PIL import Image
+          import matplotlib.pyplot as plt
+          # Preprocessing for Apriori Algorithm
+
+
+          # Function to filter rules based on the lift value
+          def filter_rules_by_lift(rules):
+              filtered_rules = rules[rules['lift'] > 1]
+              return filtered_rules
+
+          # Function to categorize rules based on lift value
+          def categorize_rules(df):
+              thresholds = [0, 1, 3, float('inf')]
+              categories = ['Low Lift', 'Medium Lift', 'High Lift']
+              df['Lift Category'] = pd.cut(df['lift'], bins=thresholds, labels=categories, include_lowest=True)
+              return df
+
+          # Interpretation of Rules
+          def interpret_rules(rules_dataframe):
+              recommendations = []
+              for index, row in rules_dataframe.iterrows():
+                  item_base = row['antecedents']
+                  item_add = row['consequents']
+                  confidence = row['confidence']
+                  lift = row['lift']
+                  if lift > 1 and confidence > 0.5:
+                      recommendation = f'Promote {item_add} to customers who buy {item_base} due to high lift ({lift}) and confidence ({confidence}).'
+                      recommendations.append(recommendation)
+                  elif lift > 1:
+                      recommendation = f'Consider bundling {item_base} and {item_add} together for sales promotions.'
+                      recommendations.append(recommendation)
+              recommendations_df = pd.DataFrame(recommendations, columns=['Recommendation'])
+              return recommendations_df.to_json(orient='records')
+
+          df = df.drop_duplicates(subset=['BillNo', 'Itemname']).dropna(subset=['BillNo', 'Itemname'])
+
+          # Transform for Apriori
+          def transform_for_apriori(df):
+              transformed_df = df.pivot_table(index='BillNo', columns='Itemname', values='Quantity', aggfunc='sum', fill_value=0)
+              transformed_df = transformed_df.applymap(lambda x: True if x > 0 else False)
+              return transformed_df
+
+          transformed_df = transform_for_apriori(df)
+
+          # Apply Apriori Algorithm
+          frequent_itemsets_apriori = apriori(transformed_df, min_support=0.01, use_colnames=True)
+
+          # Generate Association Rules
+          rules_association = association_rules(frequent_itemsets_apriori, metric='lift', min_threshold=1.2)
+
+          # Plot Support vs Confidence and Convert to Image
+          fig, ax = plt.subplots()
+          ax.scatter(rules_association['support'], rules_association['confidence'], alpha=0.5)
+          ax.set_xlabel('Support')
+          ax.set_ylabel('Confidence')
+          ax.set_title('Support vs Confidence')
+          fig.canvas.draw()
+
+          # Convert the plot to a PIL Image
+          buf = fig.canvas.print_to_buffer()
+          image = Image.frombytes('RGB', fig.canvas.get_width_height(), buf[2])
+          plt.close(fig)
+
+          # Filtering Rules by Lift
+          filtered_rules = filter_rules_by_lift(rules_association)
+
+          # Categorize Rules by Lift Value
+          categorized_rules = categorize_rules(filtered_rules)
+
+          # Interpretation of Rules
+          recommendations = interpret_rules(filtered_rules)
+
+          # Return Results
+          return {'frequent_itemsets': frequent_itemsets_apriori.to_json(orient='split'),
+                  'association_rules': rules_association.to_json(orient='split'),
+                  'filtered_rules': filtered_rules.to_json(orient='split'),
+                  'categorized_rules': categorized_rules.to_json(orient='split'),
+                  'interpretation': recommendations,
+                  'image': image}
+RFM analysis:
+  calculate number of customers in all the segments:
+    time: 39.69309592247009
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          from PIL import Image
+          import io
+          import json
+          import matplotlib.pyplot as plt
+
+          # Check for missing values in specific columns
+          missing_values = df[['CustomerID', 'Location']].isnull().sum()
+
+          # Calculate the percentage of missing values
+          total_rows = len(df)
+          missing_percentage = (missing_values / total_rows) * 100
+
+          # Handling missing values based on their proportion
+          if missing_percentage['CustomerID'] > 5 or missing_percentage['Location'] > 5:
+              # Impute missing values (example here is for categorical data, adjust accordingly)
+              df['CustomerID'].fillna('Unknown', inplace=True)
+              df['Location'].fillna(df['Location'].mode()[0], inplace=True)
+              operation = 'Imputed'
+          else:
+              # Drop rows with missing values in these columns
+              df.dropna(subset=['CustomerID', 'Location'], inplace=True)
+              operation = 'Dropped'
+
+          # Convert the operations summary into JSON
+          result_json = json.dumps({
+              'missing_values_before': missing_values.to_dict(),
+              'missing_percentage_before': missing_percentage.to_dict(),
+              'operation': operation,
+              'missing_values_after': df[['CustomerID', 'Location']].isnull().sum().to_dict()
+          }, indent=4)
+
+          # Convert numerical/tabular values into separate dataframes
+          df_customerID = df[['CustomerID']].astype('str')
+          unique_locations_df = pd.DataFrame(unique_locations, columns=['Location'])
+          customer_count_per_segment_df = pd.DataFrame(customer_count_per_segment, columns=['Location', 'CustomerCount'])
+          segment_customer_counts_df = pd.DataFrame(segment_customer_counts, columns=['Segment', 'UniqueCustomerCount'])
+          df_reset = df.reset_index()
+
+          # Output the result to a CSV file for detailed analysis
+          """
+          # Saving the DataFrame to a CSV file
+          location_segments.to_csv('customer_segments_by_location.csv', index=False)
+          """
+
+          # Return the numerical dataframes along with the image and JSON object
+          return df_customerID, unique_locations_df, customer_count_per_segment_df, segment_customer_counts_df, df_reset, result_json
+  analyze and plot the recency, frequency, and monetary scores of all the segments:
+    time: 76.46994614601135
+    agg: |
+
+      def get_results(df):
+          import pandas as pd
+          import numpy as np
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          from datetime import datetime, timedelta
+          from PIL import Image
+          from io import BytesIO
+
+          # Convert PurchaseDate to datetime
+          df['PurchaseDate'] = pd.to_datetime(df['PurchaseDate'])
+
+          # Convert PurchaseDate to datetime format and calculate Recency
+          adjust_purchase_date = lambda x: datetime.strptime(x, '%Y-%m-%d')
+          df['PurchaseDate'] = df['PurchaseDate'].apply(adjust_purchase_date)
+          max_date = df['PurchaseDate'].max() + timedelta(days=1)
+          recency_df = df.groupby('CustomerID')['PurchaseDate'].max().reset_index()
+          recency_df['Recency'] = (max_date - recency_df['PurchaseDate']).dt.days
+          recency_df = recency_df.drop(columns=['PurchaseDate'])
+
+          # Calculate Frequency
+          customer_freq = df.groupby('CustomerID')['OrderID'].nunique().reset_index()
+          customer_freq.rename(columns={'OrderID': 'Frequency'}, inplace=True)
+
+          # Calculate Monetary
+          monetary_df = df.groupby('CustomerID')['TransactionAmount'].sum().reset_index()
+          monetary_df.rename(columns={'TransactionAmount': 'MonetaryValue'}, inplace=True)
+
+          # Merge Recency, Frequency, and Monetary values
+          customer_rfm = recency_df.merge(customer_freq, on='CustomerID').merge(monetary_df, on='CustomerID')
+          customer_rfm = pd.DataFrame(customer_rfm)
+
+          # Serialize DataFrame to JSON for output
+          customer_rfm_json = customer_rfm.to_json(orient='split')
+
+          # Grouping the DataFrame by 'CustomerID' and counting unique 'OrderID's for each customer
+          customer_frequency = df.groupby('CustomerID')['OrderID'].nunique().reset_index()
+          customer_frequency.rename(columns={'OrderID': 'Frequency'}, inplace=True)
+
+          # Calculate Recency, Frequency, Monetary values
+          latest_date = df['PurchaseDate'].max() + pd.Timedelta(days=1)
+          rfm = df.groupby('CustomerID').agg({
+              'PurchaseDate': lambda x: (latest_date - x.max()).days,
+              'OrderID': 'count',
+              'TransactionAmount': 'sum'
+          }).rename(columns={'PurchaseDate': 'Recency', 'OrderID': 'Frequency', 'TransactionAmount': 'Monetary'})
+
+          # Create histograms and pairplot of RFM features
+          fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+          sns.histplot(rfm['Recency'], bins=20, ax=axes[0], kde=True)
+          axes[0].set_title('Distribution of Recency')
+          axes[0].set_xlabel('Recency')
+          axes[0].set_ylabel('Count')
+          sns.histplot(rfm['Frequency'], bins=20, ax=axes[1], kde=True)
+          axes[1].set_title('Distribution of Frequency')
+          axes[1].set_xlabel('Frequency')
+          axes[1].set_ylabel('Count')
+          sns.histplot(rfm['Monetary'], bins=20, ax=axes[2], kde=True)
+          axes[2].set_title('Distribution of Monetary')
+          axes[2].set_xlabel('Monetary')
+          axes[2].set_ylabel('Count')
+          plt.tight_layout()
+
+          # Convert matplotlib figure to PIL Image for histogram
+          buf = BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          histogram_image = Image.open(buf)
+
+          # Create seaborn pairplot
+          sns_plot = sns.pairplot(rfm)
+          plt.subplots_adjust(top=0.9)
+          sns_plot.fig.suptitle('RFM Feature Relationships', fontsize=20)
+
+          # Convert seaborn pairplot to PIL Image
+          buf = BytesIO()
+          plt.savefig(buf, format='png', bbox_inches='tight')
+          buf.seek(0)
+          pairplot_image = Image.open(buf)
+
+          # Close plt figures to free memory
+          plt.close('all')
+
+          return {
+              'most_recent_purchase': customer_rfm_json,
+              'customer_frequency': customer_frequency,
+              'rfm_data': rfm,
+              'histogram_image': histogram_image,
+              'pairplot_image': pairplot_image
+          }
+
+Fitness Watch Data Analysis:
+  look at the step count and walking speed variations by time intervals:
+    time: 82.40952587127686
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import seaborn as sns
+          import matplotlib.pyplot as plt
+          from io import BytesIO
+          from PIL import Image, ImageDraw
+          import io
+          import json
+
+          # Combine 'Date' and 'Time' into a datetime column
+          df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
+
+          # Function to categorize time intervals
+          def categorize_time_interval(hour):
+              if 5 <= hour < 12:
+                  return 'morning'
+              elif 12 <= hour < 17:
+                  return 'afternoon'
+              elif 17 <= hour < 21:
+                  return 'evening'
+              else:
+                  return 'night'
+
+          # Applying the function to create 'Time Interval' column
+          # Using the hour extracted from 'Datetime' column
+          df['Time Interval'] = df['DateTime'].dt.hour.apply(categorize_time_interval)
+
+          # Convert 'Step Count' and 'Walking Speed' to numeric
+          step_speed_df = df[['Step Count', 'Walking Speed']].apply(pd.to_numeric, errors='coerce')
+
+          # Grouping the DataFrame by the 'Time Interval' column
+          grouped_df = df.groupby('Time Interval')
+
+          # The grouped object 'grouped_df' is now ready for further analysis, such as aggregation.
+          # For demonstration, let's return a simple count of records in each Time Interval,
+          # which is a basic form of aggregation.
+          result = grouped_df.size().reset_index(name='Count')
+
+          # Converting the result into a JSON object format
+          def dataframe_to_json(df):
+              return df.to_json(orient='records')
+
+          json_output = dataframe_to_json(result)
+
+          # Define a function to categorize time into intervals
+          def categorize_time(time):
+              hour = pd.to_datetime(time, format='%H:%M').hour
+              if 0 <= hour < 6:
+                  return 'Early Morning'
+              elif 6 <= hour < 12:
+                  return 'Morning'
+              elif 12 <= hour < 18:
+                  return 'Afternoon'
+              else:
+                  return 'Evening'
+
+          # Apply the function to create a new column for Time Intervals
+          df['Time Interval'] = df['Time'].apply(categorize_time)
+
+          # Group by the newly created Time Interval and calculate summary statistics
+          summary_stats = df.groupby('Time Interval').agg({'Step Count': ['mean', 'median', 'std'],
+                                                            'Walking Speed': ['mean', 'median', 'std']})
+
+          # Reset index for better readability
+          summary_stats.reset_index(inplace=True)
+
+          # Convert the summary dataframe to json
+          summary_json = summary_stats.to_json(orient='records')
+
+          # Plotting average steps and speed
+          def plot_average_steps_and_speed(df):
+              # Aggregate the data
+              avg_metrics = df.groupby('Time').agg({'Step Count': 'mean', 'Walking Speed': 'mean'}).reset_index()
+
+              # Plotting
+              fig, ax = plt.subplots(2, 1, figsize=(10, 8))
+              sns.lineplot(data=avg_metrics, x='Time', y='Step Count', ax=ax[0])
+              sns.lineplot(data=avg_metrics, x='Time', y='Walking Speed', ax=ax[1])
+
+              ax[0].set_title('Average Step Count by Time')
+              ax[1].set_title('Average Walking Speed by Time')
+
+              # Convert plots to images
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+
+              return img
+
+          # Plot distribution
+          def plot_distribution(df):
+              # Set the size of the matplotlib figure
+              plt.figure(figsize=(20, 10))
+
+              # Plot 'Step Count' distributions
+              plt.subplot(1, 2, 1)  # 1 row, 2 columns, 1st subplot
+              sns.boxplot(x='Time', y='Step Count', data=df)
+              plt.title('Step Count Distribution by Time')
+              plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+
+              # Plot 'Walking Speed' distributions
+              plt.subplot(1, 2, 2)  # 1 row, 2 columns, 2nd subplot
+              sns.boxplot(x='Time', y='Walking Speed', data=df)
+              plt.title('Walking Speed Distribution by Time')
+              plt.xticks(rotation=45)
+
+              # Convert the plot to a PIL Image
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+
+              return img
+
+          # Detect anomalies and filter
+          def detect_anomalies_and_filter(df):
+              # Calculate means and standard deviations for numerical columns
+              stats = df.describe().transpose()
+
+              # Filter based on a criterion, e.g., 3 standard deviations from the mean
+              anomalies_filter = ((df.select_dtypes(include=['float64', 'int']) - stats['mean']) > 3 * stats['std']).any(
+                  axis=1)
+              anomalies_df = df[anomalies_filter]
+
+              # Summary of anomalies
+              summary = anomalies_df.describe().transpose()
+
+              return json.dumps({'explanation': 'Filtered the dataset for anomalies detected programmatically based on the '
+                                                 'criterion of values being more than 3 standard deviations from the '
+                                                 'mean. The resulting DataFrame contains entries considered as anomalies '
+                                                 'for further investigation.',
+                                 'dataframe_summary': summary.to_json()})
+
+          # Plot step count trend
+          def plot_step_count_trend(df):
+              # Generate the plot
+              plt.figure(figsize=(10, 6))
+              plt.plot(df['Date'], df['Step Count'], label='Step Count')
+              plt.xlabel('Date')
+              plt.ylabel('Step Count')
+              plt.title('Step Count Trend')
+              plt.legend()
+
+              # Creating a buffer
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)  # Moving to the start of the buffer
+
+              # Creating a PILLOW image from the buffer
+              image = Image.open(buf)
+
+              # Closing the buffer
+              buf.close()
+
+              return image
+
+          # Summarize findings
+          def summarize_findings(df):
+              # Grouping by 'Time' and calculating summary statistics.
+              summary_stats = df.groupby('Time').agg({'Step Count': 'describe', 'Walking Speed': 'describe'}).reset_index()
+
+              # Visual analysis
+              # Creating a figure for 'Step Count' trends
+              fig, ax = plt.subplots(figsize=(10, 6))
+              sns.lineplot(data=df, x='Time', y='Step Count', ax=ax)
+              fig_step_count = fig
+              buf = BytesIO()
+              fig_step_count.savefig(buf, format='png')
+              buf.seek(0)
+              step_count_img = Image.open(buf)
+
+              # Creating a figure for 'Walking Speed' trends
+              fig, ax = plt.subplots(figsize=(10, 6))
+              sns.lineplot(data=df, x='Time', y='Walking Speed', ax=ax)
+              fig_walking_speed = fig
+              buf = BytesIO()
+              fig_walking_speed.savefig(buf, format='png')
+              buf.seek(0)
+              walking_speed_img = Image.open(buf)
+
+              # Converting dataframes to JSON for return
+              summary_stats_json = summary_stats.to_json(orient='split')
+
+              # Closing the buffer
+              buf.close()
+
+              # Actionable insights might include:
+              # - Identifying peak and low activity hours for targeted health interventions
+              # - Adjusting daily schedules for optimum energy usage
+              # However, the specifics will depend on the analysis results
+
+              return {'Step Count Summary': summary_stats_json, 'Step Count Visual': step_count_img,
+                      'Walking Speed Summary': summary_stats_json, 'Walking Speed Visual': walking_speed_img}
+
+          # Apply the functions
+          step_speed_df, result, summary_json = step_speed_df, result, summary_json
+
+          plot_average_steps_and_speed_img = plot_average_steps_and_speed(df)
+          plot_distribution_img = plot_distribution(df)
+          detect_anomalies_and_filter_json = detect_anomalies_and_filter(df)
+          plot_step_count_trend_img = plot_step_count_trend(df)
+          summarize_findings_result = summarize_findings(df)
+
+          return step_speed_df, result, summary_json, plot_average_steps_and_speed_img, plot_distribution_img, \
+                 detect_anomalies_and_filter_json, plot_step_count_trend_img, summarize_findings_result
+  compare the daily average of all the health and fitness metrics:
+    time: 61.960777044296265
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          from datetime import datetime
+          from PIL import Image
+          import io
+          from io import BytesIO
+
+          def create_combined_plot(df):
+                    df['Date'] = pd.to_datetime(df['Date'])
+                    daily_averages = df.groupby('Date').mean()
+                    plt.figure(figsize=(10, 6))
+                    for column in ['Step Count', 'Distance', 'Energy Burned', 'Flights Climbed', 'Walking Double Support Percentage', 'Walking Speed']:
+                        plt.plot(daily_averages.index, daily_averages[column], label=column)
+                    plt.title('Daily Average Metrics Over Time')
+                    plt.xlabel('Date')
+                    plt.ylabel('Average Value')
+                    plt.legend()
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format='png')
+                    buf.seek(0)
+                    img = Image.open(buf)
+                    plt.close()
+                    return img
+
+          def plot_metrics(df):
+              fig, ax = plt.subplots()
+              colors = plt.cm.tab10(range(len(df.columns) - 2))
+              for i, metric in enumerate(df.columns[2:]):
+                  ax.plot(df['Date'], df[metric], label=metric, color=colors[i])
+              ax.legend()
+              ax.set_title('Metrics Trends Over Time')
+              plt.xticks(rotation=45)
+              ax.set_xlabel('Date')
+              buffer = BytesIO()
+              plt.savefig(buffer, format='png')
+              plt.close(fig)
+              buffer.seek(0)
+              image = Image.open(buffer)
+              return image
+
+          def plot_metrics_with_legend(df):
+              fig, ax = plt.subplots()
+              df.plot(kind='line', y='Step Count', ax=ax, label='Step Count')
+              df.plot(kind='line', y='Distance', ax=ax, color='red', label='Distance')
+              df.plot(kind='line', y='Energy Burned', ax=ax, color='green', label='Energy Burned')
+              ax.legend()
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              plt.close(fig)
+              buf.seek(0)
+              img = Image.open(buf)
+              return img
+
+          df['Date'] = pd.to_datetime(df['Date'])
+
+          result_date_dtype = {'Date Column Type': str(df['Date'].dtype)}
+
+          df_date_conversion = df.head().to_json(orient='split', date_format='iso')
+
+          daily_averages_1 = df.groupby('Date').mean()
+          daily_averages_1.reset_index(inplace=True)
+          result_json_1 = daily_averages_1.to_json(orient='split', date_format='iso')
+
+          daily_averages_2 = df.groupby('Date').mean()
+          daily_averages_2.reset_index(inplace=True)
+          result_json_2 = daily_averages_2.to_json(orient='split', date_format='iso')
+
+          img_1 = create_combined_plot(df)
+          img_2 = plot_metrics(df)
+          img_3 = plot_metrics_with_legend(df)
+
+          avg_daily_metrics = df.groupby('Date').mean().reset_index()
+          fig, ax = plt.subplots()
+          for column in avg_daily_metrics.columns[1:]:
+              ax.plot(avg_daily_metrics['Date'], avg_daily_metrics[column], label=column)
+          ax.set_xlabel('Date')
+          ax.set_ylabel('Average Value')
+          ax.set_title('Daily Averages of Health and Fitness Metrics')
+          plt.legend()
+          buf = BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img_4 = Image.open(buf)
+          plt.close()
+
+          return {
+              'Dataframe After Conversion': df_date_conversion,
+              'Conversion Result': result_date_dtype,
+              'Resulting DataFrame JSON 1': result_json_1,
+              'Resulting DataFrame JSON 2': result_json_2,
+              'Image 1': img_1,
+              'Image 2': img_2,
+              'Image 3': img_3,
+              'Image 4': img_4
+          }
+Air Quality Index:
+  plot correlation between pollutants:
+    time: 62.744653940200806
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import seaborn as sns
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          from io import BytesIO
+          import io
+
+          def clean_data_with_median(df):
+              pollutants = ['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']
+              for pollutant in pollutants:
+                  median_value = df[pollutant].median()
+                  df[pollutant].fillna(median_value, inplace=True)
+              return df
+
+
+          def plot_correlation_heatmap(df):
+              corr_matrix = df.corr()
+              plt.figure(figsize=(10, 8))
+              sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm',
+                          xticklabels=corr_matrix.columns, yticklabels=corr_matrix.columns)
+              plt.xticks(rotation=45)
+              plt.yticks(rotation=45)
+              plt.tight_layout()
+
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+
+              return img
+
+
+          def generate_correlation_heatmap_image(df):
+              corr = df[['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']].corr()
+              fig, ax = plt.subplots()
+              sns.heatmap(corr, annot=True, fmt='.2f', cmap='coolwarm', ax=ax)
+
+              buf = BytesIO()
+              fig.savefig(buf, format='png')
+              buf.seek(0)
+              image = Image.open(buf)
+              plt.close(fig)
+
+              return image
+
+          required_columns = {'co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3'}
+          current_columns = set(df.columns)
+          missing_columns = required_columns - current_columns
+          if missing_columns:
+              result = {'columns_present': False, 'missing_columns': list(missing_columns)}
+          else:
+              result = {'columns_present': True, 'missing_columns': []}
+          cleaned_df = clean_data_with_median(df)
+          result_json = cleaned_df.head().to_json()
+          relevant_cols_df = df[['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']].copy()
+          pollutants_df = df[['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']]
+          corr_matrix = pollutants_df.corr()
+          image1 = plot_correlation_heatmap(relevant_cols_df)
+          image2 = generate_correlation_heatmap_image(df)
+
+          return result, cleaned_df, relevant_cols_df, corr_matrix, image1, image2
+  plot hourly average trends of AQI in Delhi:
+    time: 80.87840008735657
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          from PIL import Image
+          import json
+          import matplotlib.pyplot as plt
+          import io
+          from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+          from matplotlib.figure import Figure
+          from io import BytesIO
+
+          def check_and_convert_date(df):
+              if df['date'].dtypes != 'datetime64[ns]':
+                  df['date'] = pd.to_datetime(df['date'])
+              return df
+
+          def calculate_simplified_aqi(df):
+              pollutant_columns = ['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']
+              df['aqi'] = df[pollutant_columns].mean(axis=1)
+              return df
+
+          def compute_hourly_mean_simple_aqi(df):
+              df['date'] = pd.to_datetime(df['date'])
+              df['hour'] = df['date'].dt.hour
+              result = df.groupby('hour')['simple_aqi'].mean().reset_index()
+              plt.figure(figsize=(10,6))
+              plt.plot(result['hour'], result['simple_aqi'], marker='o')
+              plt.title('Mean Simple AQI by Hour')
+              plt.xlabel('Hour of the Day')
+              plt.ylabel('Mean Simple AQI')
+              plt.grid(True)
+              plt.xticks(range(0, 24))
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+              result_json = json.dumps({'data': result.to_json(orient='split', index=False), 'image': img})
+              return result_json
+
+          def sort_and_plot_hourly_data(df):
+              df['hour'] = df['hour'].astype(int)
+              sorted_df = df.sort_values('hour')
+              fig = Figure()
+              canvas = FigureCanvas(fig)
+              ax = fig.add_subplot(111)
+              ax.plot(sorted_df['hour'], sorted_df['pm2_5'])
+              ax.set_title('PM2.5 Variation Over the Day')
+              ax.set_xlabel('Hour')
+              ax.set_ylabel('PM2.5')
+              buf = io.BytesIO()
+              canvas.print_png(buf)
+              img = Image.open(buf)
+              img = img.convert('RGBA')
+              buf.close()
+              return {'sorted_data': sorted_df.to_json(orient='split', date_format='iso'), 'plot_image': img}
+
+          def plot_hourly_aqi_trend(df):
+              pollutants = ['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']
+              df['simple_aqi'] = df[pollutants].mean(axis=1)
+              df['hour'] = pd.to_datetime(df['date']).dt.hour
+              hourly_avg = df.groupby('hour')['simple_aqi'].mean().reset_index()
+              plt.figure(figsize=(10, 5))
+              plt.plot(hourly_avg['hour'], hourly_avg['simple_aqi'], marker='o')
+              plt.title('Hourly Average AQI Trend')
+              plt.xlabel('Hour of the Day')
+              plt.ylabel('Average Simple AQI')
+              plt.xticks(range(0, 24))
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+              return img
+
+          def plot_to_pil(plt_func):
+              buf = BytesIO()
+              plt_func()
+              plt.savefig(buf, format='png')
+              plt.close()
+              buf.seek(0)
+              img = Image.open(buf)
+              return img
+
+          def plot_to_pillow_image(df):
+              plot_data = df[['date', 'pm2_5']].dropna()
+              fig, ax = plt.subplots()
+              ax.plot(plot_data['date'], plot_data['pm2_5'], label='PM2.5 levels')
+              ax.set_xlabel('Date')
+              ax.set_ylabel('PM2.5')
+              ax.set_title('PM2.5 Variation Over Time')
+              ax.legend()
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              plt.close(fig)
+              buf.seek(0)
+              image = Image.open(buf)
+              return image
+
+          df = check_and_convert_date(df)
+
+          if not isinstance(df.index, pd.DatetimeIndex):
+              df.index = pd.to_datetime(df.index)
+          df['hour'] = df.index.hour
+          return_json = json.dumps({
+              'explanation': 'Added a new column named \'hour\' which contains the hour extracted from the datetime index.',
+              'code': 'df[\'hour\'] = df.index.hour',
+              'modified_df': df.head().to_json()
+          })
+
+          simplified_aqi_df = calculate_simplified_aqi(df)
+          df['simple_aqi'] = df.loc[:, ['co', 'no', 'no2', 'o3', 'so2', 'pm2_5', 'pm10', 'nh3']].mean(axis=1)
+          result_json = compute_hourly_mean_simple_aqi(df)
+          sorted_data = sort_and_plot_hourly_data(df)
+          hourly_aqi_img = plot_hourly_aqi_trend(df)
+          sample_plot_img = plot_to_pil(sample_plot)
+          pillow_image = plot_to_pillow_image(df)
+
+          return simplified_aqi_df, return_json, sorted_data, hourly_aqi_img, sample_plot_img, pillow_image
+Ads CTR Forecasting:
+  compare the CTR on weekdays and weekends:
+    time: 50.059207916259766
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          from PIL import Image, ImageDraw
+          import matplotlib.pyplot as plt
+          import io
+
+          df['Date'] = pd.to_datetime(df['Date'])
+
+          # Adding 'Day_of_Week' column
+          df['Day_of_Week'] = df['Date'].dt.day_name()
+
+          # Displaying temporary message and image
+          image = Image.new('RGB', (200, 60), color=(73, 109, 137))
+          d = ImageDraw.Draw(image)
+          d.text((10, 20), "Day_of_Week Added", fill=(255, 255, 0))
+          image.show()
+
+          # Categorizing weekday/weekend
+          def categorize_day(row):
+              if row['Day_of_Week'] in ['Saturday', 'Sunday', 5, 6]:
+                  return 'Weekend'
+              else:
+                  return 'Weekday'
+
+          df['Weekday_Weekend'] = df.apply(categorize_day, axis=1)
+
+          # Visualizing weekday/weekend distribution
+          fig, ax = plt.subplots()
+          df['Weekday_Weekend'].value_counts().plot(kind='bar', ax=ax)
+          plt.tight_layout()
+
+          # Convert to PIL Image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          pil_img = Image.open(buf)
+
+          # Closing plt and buffer after use
+          plt.close()
+          buf.close()
+
+          # Calculating average CTR by weekday/weekend
+          df['CTR'] = (df['Clicks'] / df['Impressions']) * 100
+          result = df.groupby('Weekday_Weekend')['CTR'].mean().reset_index()
+          result_json = result.to_json(orient='records')
+
+          # Calculating average CTR by date
+          average_ctr_by_date = df.groupby('Date')['CTR'].mean().reset_index()
+
+          # Plotting average CTR by date
+          plt.figure(figsize=(10, 6))
+          plt.bar(average_ctr_by_date['Date'], average_ctr_by_date['CTR'], color='skyblue')
+          plt.xlabel('Date')
+          plt.ylabel('Average CTR (%)')
+          plt.title('Average CTR by Date')
+          plt.xticks(rotation=45)
+
+          # Saving plot to a PILLOW image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+
+          # Closing plt and buffer after use
+          plt.close()
+          buf.close()
+
+          # Analyzing CTR trends over time by weekday/weekend
+          df['Weekday'] = df['Date'].dt.dayofweek.apply(lambda x: 'Weekend' if x >= 5 else 'Weekday')
+          grouped_df = df.groupby(['Weekday', 'Date'])[['CTR']].mean().reset_index()
+          fig, ax = plt.subplots()
+          for label, grp in grouped_df.groupby('Weekday'):
+              grp.plot(x='Date', y='CTR', ax=ax, label=label)
+          plt.title('CTR Trends Over Time by Weekday/Weekend')
+          plt.xlabel('Date')
+          plt.ylabel('CTR')
+
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img = Image.open(buf)
+          plt.close()
+
+          # Analyzing CTR by day type
+          df['DayType'] = df['Date'].apply(lambda x: 'Weekend' if x.weekday() > 4 else 'Weekday')
+          summary = df.groupby('DayType')['CTR'].mean().reset_index()
+          fig, ax = plt.subplots()
+          summary.plot(kind='bar', x='DayType', y='CTR', ax=ax)
+          ax.set_title('Average CTR by Day Type')
+          ax.set_ylabel('Average CTR (%)')
+
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+          buf.close()
+          plt.close()
+
+          return {
+              'visualization': pil_img,
+              'average_ctr_by_weekday_weekend': result_json,
+              'numerical_values': average_ctr_by_date.to_json(orient='split', date_format='iso'),
+              'ctr_trends_image': img,
+              'ctr_by_day_type': {'dataframe': summary.to_json(orient='split'), 'image': image}
+          }
+  compare the impressions and clicks on weekdays and weekends:
+    time: 109.1137866973877
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          from io import BytesIO
+          import json
+
+          # Ensure the 'Date' column is in datetime format
+          df['Date'] = pd.to_datetime(df['Date'])
+
+          # Create the 'Day_of_Week' column by extracting day of the week from 'Date'
+          df['Day_of_Week'] = df['Date'].dt.dayofweek
+
+          # Determine if each date is a weekday or weekend
+          df['Type_of_Day'] = df['Day_of_Week'].apply(lambda x: 'Weekend' if x in [5, 6] else 'Weekday')
+
+          # Remove rows where 'Date' is missing
+          # Assuming 'Date' column is crucial and cannot be interpolated
+          df.dropna(subset=['Date'], inplace=True)
+
+          # Filling missing 'Clicks' and 'Impressions' with their median
+          # Assuming median dealing with outliers
+          for column in ['Clicks', 'Impressions']:
+              df[column].fillna(df[column].median(), inplace=True)
+
+          # Visualize the result
+          plt.figure(figsize=(10, 6))
+          plt.subplot(1, 2, 1)
+          plt.hist(df['Clicks'], bins=20, color='blue', alpha=0.7)
+          plt.title('Clicks Distribution after Handling Missing Values')
+          plt.subplot(1, 2, 2)
+          plt.hist(df['Impressions'], bins=20, color='green', alpha=0.7)
+          plt.title('Impressions Distribution after Handling Missing Values')
+
+          # Convert plots to PIL Image
+          buf = BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+
+          # Preparing the results for return
+          results_df = pd.DataFrame({
+              'Column': ['Date', 'Clicks', 'Impressions'],
+              'Missing Values Handled': ['Rows Dropped', 'Filled with Median', 'Filled with Median']
+          })
+
+          # JSON return
+          result = {
+              'explanation': 'Missing or null values in the Date, Clicks, and Impressions columns were identified and handled. Rows with missing Dates were removed. Missing values in Clicks and Impressions were filled with their respective column medians. Two histograms show the distributions of Clicks and Impressions after handling missing values.',
+              'dataframe': results_df.to_json(orient='split', index=False),
+              'image': image
+          }
+
+          # Group by 'DayType' and aggregate
+          aggregated = df.groupby('Type_of_Day').agg(Total_Clicks=('Clicks', 'sum'), Total_Impressions=('Impressions', 'sum'))
+
+          # Calculate CTR
+          aggregated['CTR'] = aggregated['Total_Clicks'] / aggregated['Total_Impressions']
+
+          # Convert aggregated DataFrame to JSON format as requested
+          result['data'] = aggregated.reset_index().to_json(orient='records')
+
+          return result
+Cohort Analysis:
+  plot weekly average of the new and returning users and the duration:
+    time: 52.74123406410217
+    agg: |
+
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          import io
+          from matplotlib.dates import DateFormatter
+          from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+          # Check the current datatype of the 'Date' column
+          current_dtype = df['Date'].dtype
+
+          # Convert 'Date' column to datetime format if it is not already
+          if not pd.api.types.is_datetime64_any_dtype(df['Date']):
+              df['Date'] = pd.to_datetime(df['Date'])
+              message = 'Date column converted to datetime.'
+          else:
+              message = 'Date column was already in datetime format.'
+
+          # Return the datatype of the 'Date' column to confirm
+          result_dtype = df['Date'].dtype
+
+          result = {'explanation': message, 'code': str(result_dtype)}
+
+          df.set_index('Date', inplace=True)
+
+          # Resample the data to weekly frequency and calculate the mean
+          weekly_averages = df.resample('W').mean()
+
+          # Resample data to weekly frequency, calculating the mean for each week
+          weekly_data = df.resample('W', on='Date').mean()
+
+          # Create a figure and subplots
+          fig, axs = plt.subplots(4, 1, figsize=(10, 15))
+
+          # Plot weekly averages for each column
+          axs[0].plot(weekly_data.index, weekly_data['New users'], label='New users', color='blue')
+          axs[0].set_title('Weekly Average of New Users')
+
+          axs[1].plot(weekly_data.index, weekly_data['Returning users'], label='Returning users', color='green')
+          axs[1].set_title('Weekly Average of Returning Users')
+
+          axs[2].plot(weekly_data.index, weekly_data['Duration Day 1'], label='Duration Day 1', color='red')
+          axs[2].set_title('Weekly Average of Duration Day 1')
+
+          axs[3].plot(weekly_data.index, weekly_data['Duration Day 7'], label='Duration Day 7', color='purple')
+          axs[3].set_title('Weekly Average of Duration Day 7')
+
+          # Adjust layout
+          plt.tight_layout()
+
+          # Convert the plot to a PIL Image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img = Image.open(buf)
+
+          # Close plt to prevent display on GUI
+          plt.close()
+
+          fig, ax = plt.subplots()
+          weekly_average = df.resample('W-MON')['New users'].mean()
+          weekly_average.plot(ax=ax)
+          ax.set_title('Weekly Average of New Users')
+          ax.set_xlabel('Week')
+          ax.set_ylabel('Average New Users')
+          ax.xaxis.set_major_formatter(DateFormatter('%Y-%m-%d'))
+          plt.xticks(rotation=45)
+          plt.grid(True)
+
+          # Convert the plot to a PIL Image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img2 = Image.open(buf)
+          plt.close()
+
+          fig, axs = plt.subplots(3, 1, figsize=(10, 15))
+          # Returning users
+          axs[0].plot(df.index, df['Returning users'])
+          axs[0].set_title('Returning Users Over Time')
+          axs[0].set_xlabel('Date')
+          axs[0].set_ylabel('Returning Users')
+          # Duration Day 1
+          axs[1].plot(df.index, df['Duration Day 1'])
+          axs[1].set_title('User Engagement on Day 1')
+          axs[1].set_xlabel('Date')
+          axs[1].set_ylabel('Duration (minutes)')
+          # Duration Day 7
+          axs[2].plot(df.index, df['Duration Day 7'])
+          axs[2].set_title('User Engagement on Day 7')
+          axs[2].set_xlabel('Date')
+          axs[2].set_ylabel('Duration (minutes)')
+          plt.tight_layout()
+
+          canvas = FigureCanvas(fig)
+          buf = io.BytesIO()
+          canvas.print_png(buf)
+          image = Image.open(buf)
+          image = image.convert('RGB')
+          buf.close()
+
+          fig, ax = plt.subplots(2, 1, figsize=(10, 8))
+
+          ax[0].plot(df['Date'], df['New users'], label='New Users')
+          ax[0].set_title('New User Trends')
+
+          ax[1].plot(df['Date'], df['Returning users'], label='Returning Users')
+          ax[1].set_title('Returning User Trends')
+
+          for a in ax:
+              a.legend()
+              a.set_xlabel('Date')
+              a.set_ylabel('Users')
+
+          plt.suptitle('User Engagement Over Time', fontsize=16)
+          plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img3 = Image.open(buf)
+          plt.close()
+
+          plt.plot([1, 2, 3, 4], [1, 4, 2, 3])
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img4 = Image.open(buf)
+          buf.close()
+
+          plt.figure(figsize=(10, 6))
+          plt.plot(dataframe['Date'], dataframe['New users'], label='New Users Over Time')
+          plt.xlabel('Date')
+          plt.ylabel('New Users')
+          plt.title('New User Growth')
+          plt.legend()
+
+          buffer = io.BytesIO()
+          plt.savefig(buffer, format='png')
+          buffer.seek(0)  # Move to the beginning of the buffer
+
+          image_obj = Image.open(buffer)
+
+          plt.close()  # Closing the plt figure to free memory
+
+          return {'result': result, 'img1': img, 'img2': img2, 'img3': img3, 'img4': img4, 'img5': image_obj}
+  make cohort matrix of weekly averages:
+    time: 66.77907395362854
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import seaborn as sns
+          import matplotlib.pyplot as plt
+          from PIL import Image, ImageDraw
+          from io import BytesIO
+
+          def fill_nan_with_zero(df):
+              filled_df = df.fillna(0)
+              return filled_df
+
+          def merge_cohort_week_info(df):
+              # Convert 'Date' column to datetime
+              df['Date'] = pd.to_datetime(df['Date'])
+
+              # Create a DataFrame to track first appearance
+              new_users = df[df['New users'] > 0].copy()
+              new_users['Cohort Week'] = new_users.groupby('New users')['Date'].transform('min')
+
+              # Calculate the cohort week number as the difference in weeks
+              new_users['Cohort Week'] = ((df['Date'] - new_users['Cohort Week']) / pd.Timedelta(weeks=1)).astype(int)
+
+              # Merge this information back into the original DataFrame based on the Date
+              # This is a basic merge; in reality, a more complex logic might be needed
+              df = pd.merge(df, new_users[['Date', 'Cohort Week']], on='Date', how='left')
+
+              # Handle cases where 'Cohort Week' might be NaN due to the simplistic logic used
+              df['Cohort Week'] = df['Cohort Week'].fillna(method='ffill')
+
+              return df
+
+          def calculate_weekly_averages(df):
+              # Group by 'Cohort Week' and 'Week', then calculate the mean
+              weekly_averages = df.groupby(['Cohort Week', 'Week']).mean().reset_index()
+
+              return weekly_averages
+
+          def heatmap_from_cohort(df):
+              # Assuming 'Date' is in datetime format. If not, use pd.to_datetime to convert.
+              # Creating a pivot table
+              cohort_matrix = df.pivot_table(index='Date', values=['New users', 'Returning users'], aggfunc='sum')
+
+              # Plotting the heatmap
+              plt.figure(figsize=(10, 8))
+              sns.heatmap(cohort_matrix, annot=True, fmt='.1f', cmap='YlGnBu')
+              plt.title('Cohort Analysis - Heatmap')
+              plt.ylabel('Date')
+              plt.xlabel('User Type')
+
+              # Converting Matplotlib figure to Pillow Image
+              buffer = BytesIO()
+              plt.savefig(buffer, format='png')
+              plt.close()
+              buffer.seek(0)
+
+              image = Image.open(buffer)
+              return image
+
+          df['Date'] = pd.to_datetime(df['Date'])
+          df['Week'] = df['Date'].dt.to_period('W')
+
+          # Merge cohort week information back into the original dataframe
+          result_df = merge_cohort_week_info(df)
+
+          # Calculate weekly averages
+          weekly_averages_df = calculate_weekly_averages(df)
+
+          # Pivot the DataFrame
+          pivot_df = df.pivot_table(index='Cohort Week', columns='Week', values=['New users', 'Returning users', 'Duration Day 1', 'Duration Day 7'], aggfunc='mean')
+
+          # Fill NaN values with zero
+          pivot_df_filled = fill_nan_with_zero(pivot_df)
+
+          # Create a heatmap from cohort analysis
+          image = heatmap_from_cohort(df)
+
+          return result_df, weekly_averages_df, pivot_df_filled, image
+Customer Acquisition Cost Analysis:
+  find break-even customers for each marketing channel:
+    time: 53.91884422302246
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import numpy as np
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          from io import BytesIO
+
+
+          # Function to inspect the DataFrame
+          def inspect_dataframe(df):
+              info_summary = df.info()
+              description = df.describe()
+              missing_values = df.isnull().sum()
+              results = {'DataFrame Info': str(info_summary), 'Description': description, 'Missing Values': missing_values}
+              return results
+
+          # Fill missing values with 0 and remove duplicate rows
+          df.fillna(0, inplace=True)
+          df.drop_duplicates(inplace=True)
+          if not pd.api.types.is_float_dtype(df['Marketing_Spend']):
+              df['Marketing_Spend'] = df['Marketing_Spend'].astype('float64')
+          if not pd.api.types.is_float_dtype(df['New_Customers']):
+              df['New_Customers'] = df['New_Customers'].astype('float64')
+
+          # Calculate ARPC (Average Revenue Per Customer)
+          def calculate_arpc(df, estimated_conversion_value=None):
+              if estimated_conversion_value is not None:
+                  total_revenue = df['New_Customers'] * estimated_conversion_value
+              else:
+                  total_revenue = df['Marketing_Spend']
+              total_customers = df['New_Customers'].sum()
+              arpc = total_revenue.sum() / total_customers
+              arpc_df = pd.DataFrame({'ARPC': [arpc]})
+              return {'explanation': 'Calculated the Average Revenue Per Customer (ARPC) based on provided data and assumptions. This is a simplified approach and assumes all marketing spend directly contributes to revenue generation.', 'code': arpc_df}
+
+          # Group by Marketing_Channel and aggregate Marketing_Spend
+          df_grouped = df.groupby('Marketing_Channel')['Marketing_Spend'].sum().reset_index()
+
+          # Calculate break-even points and evaluate channels
+          def calculate_break_even(df):
+              channel_summary = df.groupby('Marketing_Channel').agg({'Marketing_Spend': 'sum', 'New_Customers': 'sum'}).reset_index()
+              channel_summary['ARPC'] = channel_summary['Marketing_Spend'] / channel_summary['New_Customers']
+              channel_summary['Break_Even_Customers'] = channel_summary['Marketing_Spend'] / channel_summary['ARPC']
+              break_even_df = channel_summary[['Marketing_Channel', 'Break_Even_Customers']]
+              return break_even_df
+
+          break_even_df = calculate_break_even(df)
+
+          # Compare Break-Even Point with Actual New Customers and visualize
+          def compare_break_even(df):
+              ARPC = 100  # Assuming an average revenue of $100 per customer
+              df['Break_Even_Customers'] = df['Marketing_Spend'] / ARPC
+              df['Reached_BEP'] = df['New_Customers'] >= df['Break_Even_Customers']
+              fig, ax = plt.subplots()
+              ax.bar(df['Marketing_Channel'], df['New_Customers'], label='Actual Customers')
+              ax.bar(df['Marketing_Channel'], df['Break_Even_Customers'], width=0.5, label='Break-Even Customers', alpha=0.7)
+              plt.xlabel('Marketing Channel')
+              plt.ylabel('Number of Customers')
+              plt.title('Actual vs. Break-Even Customers by Channel')
+              plt.xticks(rotation=45)
+              plt.legend()
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              image = Image.open(buf)
+              plt.close()
+              result = {'visual': image, 'data': df[['Marketing_Channel', 'New_Customers', 'Break_Even_Customers', 'Reached_BEP']]}
+              return result
+
+          # Analyze and visualize channel performance
+          def analyze_marketing_channels(df):
+              channel_performance = df.groupby('Marketing_Channel').agg({'Marketing_Spend': 'sum', 'New_Customers': 'sum'})
+              channel_performance['Efficiency'] = channel_performance['New_Customers'] / channel_performance['Marketing_Spend']
+              channel_performance['Cost_Effectiveness'] = channel_performance['Marketing_Spend'] / channel_performance['New_Customers']
+              fig, ax = plt.subplots(2, 1, figsize=(10, 8))
+              channel_performance['Efficiency'].plot(kind='bar', ax=ax[0], title='Efficiency (New Customers per Unit Spend)', color='blue')
+              channel_performance['Cost_Effectiveness'].plot(kind='bar', ax=ax[1], title='Cost-Effectiveness (Spend per New Customer)', color='red')
+              plt.tight_layout()
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              channel_performance_json = channel_performance.reset_index().to_json(orient='records')
+              return {'visualization': img, 'data': channel_performance_json}
+
+          # Get all results
+          df_inspection = inspect_dataframe(df)
+          arpc_result = calculate_arpc(df)
+          break_even_result = break_even_df.to_json(orient='records')
+          compare_break_even_result = compare_break_even(df)
+          analyze_marketing_channels_result = analyze_marketing_channels(df)
+
+          return df_inspection, arpc_result, df_grouped, break_even_result, compare_break_even_result, analyze_marketing_channels_result
+Customer Behaviour Analysis:
+  plot  distribution of age:
+    time: 62.091575145721436
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          from PIL import Image
+          import io
+          import json
+          import os
+
+
+          def preprocess_age(df):
+              missing_ages = df['Age'].isnull().sum()
+              if missing_ages > 0:
+                  mean_age = df['Age'].mean()
+                  df['Age'].fillna(mean_age, inplace=True)
+              return json.dumps({'DataFrame': df.to_json(), 'Processed': True, 'MissingValuesHandled': missing_ages})
+
+          def verify_and_convert_age_column(df):
+              pass
+
+          def generate_age_histogram(df):
+              plt.figure(figsize=(10, 6))
+              plt.hist(df['Age'], bins=20, color='blue', edgecolor='black')
+              plt.title('Age Distribution')
+              plt.xlabel('Age')
+              plt.ylabel('Frequency')
+              temp_image_path = 'temp_hist_image.png'
+              plt.savefig(temp_image_path)
+              plt.close()
+              histogram_image = Image.open(temp_image_path)
+              os.remove(temp_image_path)  # Clean up by removing the temp image file
+              return histogram_image
+
+          def customize_histogram(df):
+              plt.figure(figsize=(10,6))
+              plt.hist(df['Age'], color='skyblue', edgecolor='black')
+              plt.title('Distribution of Age')
+              plt.xlabel('Age')
+              plt.ylabel('Frequency')
+              plt.grid(True)
+
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              plt.close()
+              buf.seek(0)
+              img = Image.open(buf)
+              return img
+
+          def plot_to_image():
+              x = [1, 2, 3, 4]
+              y = [1, 4, 2, 3]
+              plt.figure()
+              plt.plot(x, y)
+              plt.title('Example Plot')
+
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+
+              img = Image.open(buf)
+              buf.close()
+
+              return img
+
+          def dataframe_histogram_to_image(df, column_name):
+              plt.figure()
+              plt.hist(df[column_name], bins=20, color='blue', edgecolor='black')
+              plt.title(f'Histogram of {column_name}')
+              plt.xlabel(column_name)
+              plt.ylabel('Frequency')
+
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+
+              image = Image.open(buf)
+              buf.close()
+
+              return image
+
+          def analyze_user_data(df):
+              try:
+                  if 'Age' not in df.columns:
+                      raise ValueError('The DataFrame does not contain the required column: Age')
+
+                  average_age = df['Age'].mean()
+                  total_purchases = df['Total_Purchases'].sum()
+
+                  summary_df = pd.DataFrame({'Average_Age': [average_age], 'Total_Purchases': [total_purchases]})
+
+                  return json.dumps({'result': summary_df.to_json(orient='split'), 'visualization': None}, ensure_ascii=False)
+
+              except Exception as e:
+                  return json.dumps({'error': str(e)})
+
+          def analyze_user_behavior(df):
+              summary_stats = df.describe()
+
+              plt.figure(figsize=(10, 6))
+              sns.scatterplot(data=df, x='Product_Browsing_Time', y='Total_Purchases', hue='Gender')
+              plt.title('Browsing Time vs Total Purchases by Gender')
+              plt.xlabel('Product Browsing Time')
+              plt.ylabel('Total Purchases')
+
+              plot_buffer = io.BytesIO()
+              plt.savefig(plot_buffer, format='png')
+              plot_buffer.seek(0)
+              plot_image = Image.open(plot_buffer)
+
+              result = {
+                  'summary_stats': summary_stats.to_json(),
+                  'visualization': plot_image
+              }
+
+              return result
+
+          results = {}
+
+          results['preprocessed_age'] = preprocess_age(df)
+          results['age_histogram'] = generate_age_histogram(df)
+          results['customized_histogram'] = customize_histogram(df)
+          results['plot_image'] = plot_to_image()
+          results['total_purchases_histogram'] = dataframe_histogram_to_image(df, 'Total_Purchases')
+          results['user_data_analysis'] = analyze_user_data(df)
+          results['user_behavior_analysis'] = analyze_user_behavior(df)
+
+          return results
+  plot gender distribution:
+    time: 48.028098821640015
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import io
+          from PIL import Image, ImageDraw
+          import numpy as np
+          from matplotlib.figure import Figure
+          # Function to preprocess 'Gender' column
+          def preprocess_gender(df):
+              # Standardizing gender labels
+              df['Gender'] = df['Gender'].replace({'Male': 'M', 'Female': 'F', 'male': 'M', 'female': 'F', 'FEMALE': 'F', 'MALE': 'M'})
+
+              # Handling missing values by replacing them with 'Not Specified'
+              df['Gender'] = df['Gender'].fillna('Not Specified')
+
+              # Detecting and correcting any other inconsistencies (e.g., typos)
+              allowed_values = ['M', 'F', 'Not Specified']
+              df.loc[~df['Gender'].isin(allowed_values), 'Gender'] = 'Not Specified'
+
+              # Creating a bar chart for the distribution of corrected 'Gender' values
+              gender_counts = df['Gender'].value_counts()
+              img = Image.new('RGB', (400, 300), color=(255, 255, 255))
+              d = ImageDraw.Draw(img)
+              for i, (gender, count) in enumerate(gender_counts.items()):
+                  d.text((10, 10+i*30), f'{gender}: {count}', fill=(0, 0, 0))
+
+              # Showing how 'Gender' column values have been standardized and missing values handled
+              result_df = pd.DataFrame({'Gender': gender_counts.index, 'Count': gender_counts.values})
+
+              # Converting image to BytesIO
+              img_byte_arr = io.BytesIO()
+              img.save(img_byte_arr, format='PNG')
+              img_byte_arr = img_byte_arr.getvalue()
+              return {'fig': img_byte_arr, 'result_df': result_df.to_json(orient='split')}
+
+          # Function to validate 'Gender' column
+          def validate_gender_column(df):
+              # Check for missing values
+              missing_values = df['Gender'].isna().sum()
+
+              # Identify inconsistencies in gender notation
+              unique_genders = df['Gender'].unique()
+              gender_counts = df['Gender'].value_counts(dropna=False).reset_index()
+              gender_counts.columns = ['Gender', 'Count']
+
+              # Prepare data for JSON return
+              result_dataframe = gender_counts
+
+              # Visualize gender counts for quick assessment
+              plt.figure(figsize=(10, 6))
+              gender_counts.plot.bar(x='Gender', y='Count')
+              plt.title('Counts of Each Gender Notation')
+              plt.ylabel('Count')
+              plt.xlabel('Gender')
+              plt.tight_layout()
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              image = Image.open(buf)
+
+              # Prepare the result as a JSON object
+              result = {
+                  'missing_values': missing_values,
+                  'unique_genders': unique_genders.tolist(),
+                  'result_dataframe_json': result_dataframe.to_json(orient='split'),
+                  'gender_counts_image': image
+              }
+
+              return json.dumps(result, indent=2)
+
+          # Function to get gender distribution
+          def get_gender_distribution(df):
+              gender_counts = df['Gender'].value_counts()
+
+              # Plot
+              plt.figure(figsize=(8, 6))
+              gender_counts.plot.bar()
+              plt.title('Gender Distribution')
+              plt.xlabel('Gender')
+              plt.ylabel('Counts')
+              plt.xticks(rotation=45)
+
+              # Convert plot to PIL Image
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+
+              return {'gender_distribution_table': gender_counts.to_frame(), 'gender_distribution_plot': img}
+
+          # Function to plot gender distribution
+          def plot_gender_distribution(df):
+              # Calculate the distribution of the Gender column
+              gender_distribution = df['Gender'].value_counts()
+
+              # Create a bar plot
+              fig = Figure()
+              ax = fig.subplots()
+              gender_distribution.plot(kind='bar', ax=ax)
+              ax.set_title('Gender Distribution')
+              ax.set_xlabel('Gender')
+              ax.set_ylabel('Count')
+
+              # Convert the matplotlib plot to a PIL Image
+              buf = BytesIO()
+              fig.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+
+              # Return the PIL Image
+              return img
+
+          # Analyze user behavior
+          def analyze_user_behavior(df):
+              # Calculating average browsing time and total purchases by gender
+              avg_stats_by_gender = df.groupby('Gender').agg({
+                  'Product_Browsing_Time': 'mean',
+                  'Total_Purchases': 'sum'
+              }).reset_index()
+
+              # Generating histogram of age distribution per gender
+              plt.figure()
+              for gender in df['Gender'].unique():
+                  subset = df[df['Gender'] == gender]
+                  subset['Age'].hist(alpha=0.5, label=gender)
+              plt.legend(title='Gender')
+              plt.title('Age Distribution by Gender')
+              plt.xlabel('Age')
+              plt.ylabel('Frequency')
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              age_dist_img = Image.open(buf)
+              plt.close()
+
+              # Plotting total purchases against items added to cart
+              plt.figure()
+              plt.scatter(df['Items_Added_to_Cart'], df['Total_Purchases'])
+              plt.title('Total Purchases vs. Items Added to Cart')
+              plt.xlabel('Items Added to Cart')
+              plt.ylabel('Total Purchases')
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              purchase_cart_img = Image.open(buf)
+              plt.close()
+
+              # Preparing the results as a JSON object
+              result = {
+                  'average_stats_by_gender': avg_stats_by_gender.to_json(),
+                  'age_distribution_image': age_dist_img,
+                  'purchase_vs_cart_image': purchase_cart_img
+              }
+
+              return result
+
+          # Call each function and return results
+          preprocess_result = preprocess_gender(df)
+          validate_result = validate_gender_column(df)
+          gender_distribution_result = get_gender_distribution(df)
+          gender_plot_result = plot_gender_distribution(df)
+          behavior_analysis_result = analyze_user_behavior(df)
+
+          return preprocess_result, validate_result, gender_distribution_result, gender_plot_result, behavior_analysis_result
+
+User Engagement Analysis:
+  ploat correlation matrix between features:
+    time: 45.23765707015991
+    agg: |
+      def get_results(df):
+
+          import pandas as pd
+          import numpy as np
+          import seaborn as sns
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          import io
+
+
+          df.isnull().sum()
+          numerical_columns = df.select_dtypes(include=['number']).columns
+          df[numerical_columns] = df[numerical_columns].apply(lambda x: x.fillna(x.mean()))
+
+          def convert_columns_to_numeric(df):
+              # Preprocess 'Bounce Rate' to remove '%'
+              df['Bounce Rate'] = df['Bounce Rate'].str.replace('%', '')
+              # Convert columns to numeric
+              columns_to_convert = ['Sessions', 'Avg. Session Duration', 'Bounce Rate']
+              for column in columns_to_convert:
+                  df[column] = pd.to_numeric(df[column], errors='coerce')
+              return df
+
+          df_converted = convert_columns_to_numeric(df)
+
+          correlation_matrix = df.corr()
+          heatmap = sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0)
+
+          # Converting Matplotlib plot to PIL Image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+          plt.close()
+
+          correlation_matrix = df.corr()
+
+          def create_heatmap(df):
+              # Computing the correlation matrix
+              corr = df.corr()
+
+              # Creating a heatmap
+              plt.figure(figsize=(10, 8))
+              heatmap = sns.heatmap(corr, annot=True, cmap='coolwarm', linewidths=0.5)
+              plt.close()
+
+              # Converting heatmap to PIL image
+              buf = io.BytesIO()
+              heatmap.get_figure().savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+
+              return img
+
+          def create_customized_heatmap(df):
+              # Compute the correlation matrix
+              corr = df.corr()
+
+              # Create a figure with matplotlib, adjust the size as per requirement
+              plt.figure(figsize=(10, 8))
+
+              # Plotting the heatmap using seaborn
+              heatmap = sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f', linewidths=.5)
+
+              # Customize the heatmap
+              plt.title('Correlation Heatmap', fontsize=20)
+              plt.xlabel('DataFrame Columns', fontsize=15)
+              plt.ylabel('DataFrame Columns', fontsize=15)
+
+              # Saving the plot to a buffer
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              # Converting the plot saved in buffer to a PILLOW Image
+              image = Image.open(buf)
+              plt.close() # Close the plt figure to prevent memory issues
+
+              # Converting the image to a PILLOW Image allows it to be returned without using GUI methods
+              return image
+
+          # Calculate correlation matrix
+          corr_matrix = df.corr()
+
+          # Create a heatmap
+          plt.figure(figsize=(10, 8))
+          sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm', square=True, linewidths=.5)
+          plt.title('Feature Correlation Heatmap')
+
+          # Convert matplotlib plot to PIL Image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+
+          return df_converted, heatmap, image
+
+  plot bounce rate categories (low, medium, high):
+    time: 48.13557696342468
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          import io
+          import numpy as np
+
+          # Calculating descriptive statistics for 'Bounce Rate'
+          min_bounce_rate = df['Bounce Rate'].min()
+          max_bounce_rate = df['Bounce Rate'].max()
+          mean_bounce_rate = df['Bounce Rate'].mean()
+          percentiles_bounce_rate = df['Bounce Rate'].quantile([0.25, 0.5, 0.75])
+
+          # Creating a DataFrame to display the results
+          stats_df = pd.DataFrame({'Minimum': [min_bounce_rate],
+                                    'Maximum': [max_bounce_rate],
+                                    'Mean': [mean_bounce_rate],
+                                    '25th Percentile': [percentiles_bounce_rate.iloc[0]],
+                                    'Median': [percentiles_bounce_rate.iloc[1]],
+                                    '75th Percentile': [percentiles_bounce_rate.iloc[2]]})
+
+          # Categorize Bounce Rate
+          conditions = [
+              (df['Bounce Rate'] < 30),
+              (df['Bounce Rate'] >= 30) & (df['Bounce Rate'] <= 70),
+              (df['Bounce Rate'] > 70)
+          ]
+          choices = ['Low', 'Medium', 'High']
+          df['Bounce Rate Category'] = np.select(conditions, choices, default='Unknown')
+
+          # Count the occurrences of each category
+          category_counts = df['Bounce Rate Category'].value_counts().reset_index()
+          category_counts.columns = ['Bounce Rate Category', 'Count']
+
+          # Create a bar plot
+          plt.figure(figsize=(10, 6))
+          plt.bar(category_counts['Bounce Rate Category'], category_counts['Count'], color=['green', 'orange', 'red'])
+          plt.title('Bounce Rate Categories')
+          plt.xlabel('Category')
+          plt.ylabel('Count')
+
+          # Convert plot to a PIL Image object
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img = Image.open(buf)
+
+          # Closing the plot
+          plt.close()
+
+          # Calculating the frequency of each category
+          frequency = df['Bounce Rate Category'].value_counts()
+          category_frequency_df = frequency.reset_index()
+          category_frequency_df.columns = ['Bounce Rate Category', 'Frequency']
+          output = category_frequency_df.to_json(orient='split', index=False)
+
+          # Converting numerical results to separate dataframes
+          stats_df = stats_df.add_prefix('Stats_')
+          category_counts = category_counts.add_prefix('Counts_')
+
+          return stats_df, category_counts, output, img
+
+Customer Lifetime Value Analysis:
+  histogram distribution of acquisition cost and revenue generated by the customer:
+    time: 57.280076026916504
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          from PIL import Image
+          import io
+          import json
+          from io import BytesIO
+          import numpy as np
+          # Using df.head() to view the first few rows of the DataFrame
+          df_head = df.head()
+
+          # Using df.describe() to get summary statistics of the DataFrame, focusing on 'cost' and 'revenue' columns
+          df_describe = df[['cost', 'revenue']].describe()
+
+          # Creating a valid JSON output
+          def preliminary_data_check():
+              # Ensuring the function returns data frames in a format compatible with the requirement
+              return {'head': df_head.to_json(), 'describe': df_describe.to_json()}
+
+          # Clean data function
+          def clean_data(df):
+              missing_info = {}
+              # Check for missing values in 'cost' and 'revenue'
+              missing_info['cost'] = df['cost'].isnull().sum()
+              missing_info['revenue'] = df['revenue'].isnull().sum()
+
+              # If missing values exist, fill them with the median of their respective columns
+              if missing_info['cost'] > 0:
+                  df['cost'].fillna(df['cost'].median(), inplace=True)
+              if missing_info['revenue'] > 0:
+                  df['revenue'].fillna(df['revenue'].median(), inplace=True)
+
+              # Returning DataFrame and counts of handled missing values as JSON
+              results_json = json.dumps({
+                  'dataframe_updated': True,
+                  'missing_values_handled': missing_info
+              })
+              return results_json
+
+          # Plot histogram of cost
+          def plot_histogram_cost(df):
+              plt.figure(figsize=(10,6))
+              plt.hist(df['cost'], bins='auto', color='#0504aa', alpha=0.7)
+              plt.grid(axis='y', alpha=0.75)
+              plt.xlabel('Acquisition Cost')
+              plt.ylabel('Frequency')
+              plt.title('Histogram of Acquisition Cost')
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              im = Image.open(buf)
+              plt.close()
+              return im
+
+          # Analyze revenue distribution
+          def analyze_revenue_distribution(df):
+              descriptive_stats = df['revenue'].describe()
+
+              plt.figure()
+              df['revenue'].hist(bins=20)
+              plt.title('Distribution of Revenue')
+              plt.xlabel('Revenue')
+              plt.ylabel('Frequency')
+
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              image = Image.open(buf)
+              plt.close()
+
+              stats_df = pd.DataFrame(descriptive_stats).transpose()
+
+              return {'explanation': 'The function calculates descriptive statistics for the revenue generated by customers and creates a histogram to visualize its distribution. The histogram is converted to a Pillow Image for output.', 'descriptive_statistics': stats_df.to_json(), 'histogram_image': image}
+
+          # Plot histograms and assess skewness
+          def plot_histograms(df):
+              numerical_columns = ['cost', 'conversion_rate', 'revenue']
+              histograms = {}
+              for column in numerical_columns:
+                  fig, ax = plt.subplots()
+                  df[column].hist(bins=30, ax=ax)
+                  ax.set_title(f'Histogram of {column}')
+                  ax.set_xlabel(column)
+                  ax.set_ylabel('Frequency')
+                  img = fig_to_image(fig)
+                  histograms[column] = img
+                  plt.close(fig)
+              skewness_assessment = {col: 'Assessment of the skewness based on the histogram.' for col in numerical_columns}
+              return {'histograms': histograms, 'skewness_assessment': skewness_assessment}
+
+          # Function to convert matplotlib plot to PIL Image
+          def fig_to_image(fig):
+              buf = io.BytesIO()
+              fig.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              return img
+
+          # Summary statistics
+          def summary_statistics(df):
+              cost_mean = df['cost'].mean()
+              cost_median = df['cost'].median()
+              cost_std = df['cost'].std()
+
+              revenue_mean = df['revenue'].mean()
+              revenue_median = df['revenue'].median()
+              revenue_std = df['revenue'].std()
+
+              summary_df = pd.DataFrame({
+                  'Statistic': ['Mean', 'Median', 'Standard Deviation'],
+                  'Cost': [cost_mean, cost_median, cost_std],
+                  'Revenue': [revenue_mean, revenue_median, revenue_std]
+              })
+
+              result_json = summary_df.to_json(orient='split', index=False)
+              return result_json
+
+          # Analyze results
+          def analyze_results(df):
+              fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+              df['cost'].hist(ax=ax[0], bins=20)
+              ax[0].set_title('Histogram of Costs')
+              df['revenue'].hist(ax=ax[1], bins=20)
+              ax[1].set_title('Histogram of Revenues')
+
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              hist_image = Image.open(buf)
+              buf.close()
+
+              summary_stats = df.describe().loc[['mean', '50%', 'std', 'min', 'max'], ['cost', 'conversion_rate', 'revenue']].rename(index={'50%': 'median'})
+              summary_df = pd.DataFrame(summary_stats)
+
+              insights = '''The histograms indicate the distribution of costs and revenues. If the cost histogram is skewed towards lower values, most customers are acquired with lower costs. The revenue histogram indicates the range where most revenues lie. Summary statistics provide a numerical view, where the mean, median, and std deviation help understand the central tendency and spread. If there is a positive correlation between cost and revenue, higher costs might be justified.'''
+
+              return {'histograms_image': hist_image, 'summary_statistics': summary_df, 'insights': insights}
+
+          # Analyze and document findings
+          def analyze_and_document(df):
+              fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+              df['cost'].plot(kind='hist', ax=ax[0], title='Acquisition Cost Distribution')
+              df['revenue'].plot(kind='hist', ax=ax[1], title='Revenue Distribution')
+              buf = io.BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              hist_images = Image.open(buf)
+
+              stats = df[['cost', 'revenue']].describe().T
+
+              channel_insights = df.groupby('channel').mean()
+              channel_insights = channel_insights[channel_insights['revenue'] > channel_insights['cost']].reset_index()
+
+              recommendations = pd.DataFrame({'Channel': channel_insights['channel'], 'AvgCost': channel_insights['cost'], 'AvgRevenue': channel_insights['revenue']})
+
+              return {'explanation': 'The histograms provide a visual understanding of cost and revenue distributions, helping identify patterns and outliers. The analysis of average cost and revenue per channel reveals specific segments that are more profitable, suggesting a focus on these for future campaigns.', 'visuals': hist_images, 'data': recommendations.to_json(orient='split')}
+
+          # Calling functions
+          preliminary_data_check()
+          clean_data(df)
+          plot_histogram_cost(df)
+          analyze_revenue_distribution(df)
+          plot_histograms(df)
+          summary_statistics(df)
+          analyze_results(df)
+          analyze_and_document(df)
+
+          # Convert numericals to separate dataframes
+          df_cost = df[['cost']]
+          df_conversion_rate = df[['conversion_rate']]
+          df_revenue = df[['revenue']]
+
+          # Return image with results
+          return {'image': hist_image, 'df_cost': df_cost, 'df_conversion_rate': df_conversion_rate, 'df_revenue': df_revenue}
+
+  distribution of revenue?:
+    time: 67.50433874130249
+    agg: |
+
+      def get_results(df):
+          import pandas as pd
+          import seaborn as sns
+          import matplotlib.pyplot as plt
+          from PIL import Image, ImageDraw
+          import numpy as np
+          from io import BytesIO
+          from scipy import stats
+          import json
+
+          def handle_missing_revenue(df):
+              missing_values = df['revenue'].isnull().sum()
+              total_values = len(df)
+              missing_percentage = (missing_values / total_values) * 100
+
+              if missing_percentage < 10:
+                  df['revenue'].fillna(df['revenue'].mean(), inplace=True)
+                  strategy_used = 'Mean imputation'
+              else:
+                  strategy_used = 'Investigation or removal recommended'
+
+              img = Image.new('RGB', (400, 50), color=(255, 255, 255))
+              d = ImageDraw.Draw(img)
+              d.text((10, 10), "Missing handling: " + strategy_used, fill=(0, 0, 0))
+
+              output = BytesIO()
+              img.save(output, 'PNG')
+              output.seek(0)
+              img = Image.open(output)
+
+              return json.dumps({'explanation': 'Missing values were ' + strategy_used + '.', 'visualization': img},
+                                default=lambda x: None)
+
+
+          def create_boxplot(df):
+              plt.figure(figsize=(10, 6))
+              sns.boxplot(x='cost', data=df)
+
+              buffer = BytesIO()
+              plt.savefig(buffer, format='png')
+              buffer.seek(0)
+
+              image = Image.open(buffer)
+
+              plt.close()
+
+              return {'explanation': 'The boxplot showcases the distribution, quartile information, and potential outliers in the cost column.',
+                      'image': image}
+
+
+          def transform_column(dataframe, column, transformation='log'):
+              if transformation == 'log':
+                  transformed_data = np.log(dataframe[column] + 1)
+              elif transformation == 'sqrt':
+                  transformed_data = np.sqrt(dataframe[column])
+              elif transformation == 'boxcox':
+                  transformed_data, _ = stats.boxcox(dataframe[column] + 1)
+              else:
+                  return {'explanation': 'Invalid transformation type.', 'code': '', 'result': None}
+
+              fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+              sns.histplot(dataframe[column], ax=ax[0], kde=True)
+              ax[0].set_title('Original Data')
+              sns.histplot(transformed_data, ax=ax[1], kde=True)
+              ax[1].set_title('Transformed Data')
+
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              buf.close()
+
+              return {'explanation': 'The function transforms the data using the specified method and plots the original vs. transformed data distributions.', 'code': '', 'result': img}
+
+
+          def plt_to_pillow(fig):
+              buf = BytesIO()
+              fig.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              buf.close()
+              return img
+
+
+          def analyze_and_visualize(df):
+              df['log_cost'] = np.log(df['cost'] + 1)
+
+              fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+              df['cost'].hist(ax=ax[0], bins=30)
+              ax[0].set_title('Original Cost Histogram')
+              df.boxplot(column=['cost'], ax=ax[1])
+              ax[1].set_title('Original Cost Boxplot')
+              original_visualizations = plt_to_pillow(fig)
+
+              fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+              df['log_cost'].hist(ax=ax[0], bins=30)
+              ax[0].set_title('Log-Transformed Cost Histogram')
+              df.boxplot(column=['log_cost'], ax=ax[1])
+              ax[1].set_title('Log-Transformed Cost Boxplot')
+              transformed_visualizations = plt_to_pillow(fig)
+
+              plt.close('all')
+
+              return {
+                  'original_histogram_and_boxplot': original_visualizations,
+                  'transformed_histogram_and_boxplot': transformed_visualizations,
+                  'transformed_data': df[['customer_id', 'log_cost']].to_json(orient='records')
+              }
+
+
+
+          df_head = df.head()
+
+          missing_revenue = handle_missing_revenue(df)
+
+          revenue_description = df['revenue'].describe()
+
+          sns.displot(df['revenue'], kind='hist')
+
+          boxplot = create_boxplot(df)
+
+          skewness = df['revenue'].skew()
+          kurtosis = df['revenue'].kurtosis()
+
+          transformation_result = transform_column(df, 'revenue')
+
+          stats_summary = df['revenue'].describe()
+
+          fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+          ax[0].hist(df['revenue'], bins=30, color='skyblue', edgecolor='black')
+          ax[0].set_title('Revenue Distribution')
+          ax[0].set_xlabel('Revenue')
+          ax[0].set_ylabel('Frequency')
+          ax[1].boxplot(df['revenue'], vert=False, patch_artist=True)
+          ax[1].set_title('Revenue Boxplot')
+          ax[1].set_xlabel('Revenue')
+          plt.tight_layout()
+          buf = BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          image = Image.open(buf)
+          buf.close()
+          result = {
+              'statistical_summary': stats_summary.to_dict(),
+              'skewness': skewness,
+              'kurtosis': kurtosis,
+              'visualization': 'The plot is converted to a Pillow Image object and should be displayed as needed.'
+          }
+          result['visualization'] = image
+
+          json_response = json.dumps(result)
+
+          return df_head, missing_revenue, revenue_description, boxplot, skewness, kurtosis, transformation_result, json_response
+Supply chain analysis:
+  plot relationship between the price of the products and the revenue generated by them:
+    time: 54.713407039642334
+    agg: |
+      def get_results(df):
+
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          import seaborn as sns
+          from PIL import Image
+          from io import BytesIO
+          import numpy as np
+
+          # Checking for null values in 'Price' and 'Revenue generated' columns
+          missing_values = df[['Price', 'Revenue generated']].isnull().sum()
+
+          # Handling missing values
+          if missing_values.sum() > 0:  # If there are any missing values
+              if missing_values.sum() <= (len(df) * 0.05):  # If missing values are less than 5% of the data
+                  # Drop rows with missing values
+                  df.dropna(subset=['Price', 'Revenue generated'], inplace=True)
+              else:
+                  # Fill missing values with the mean
+                  df['Price'].fillna(df['Price'].mean(), inplace=True)
+                  df['Revenue generated'].fillna(df['Revenue generated'].mean(), inplace=True)
+
+          # Returning the DataFrame with handled missing values
+          result_df = df[['Price', 'Revenue generated']]
+
+          # Define the aggregation rules for different columns
+          aggregation_rules = {
+              'Price': 'mean',
+              'Revenue generated': 'sum'
+          }
+
+          # Aggregate data by 'SKU' or 'Product type'. Replace 'SKU' with 'Product type' if aggregation should be bases on product type instead of SKU.
+          df_aggregated = df.groupby('SKU', as_index=False).agg(aggregation_rules)
+
+          # Analyze price vs revenue
+          def analyze_price_vs_revenue(df):
+              # Creating the scatter plot
+              plt.figure(figsize=(10, 6))
+              sns.scatterplot(data=df, x='Price', y='Revenue generated')
+              plt.title('Price vs. Revenue Generated')
+              plt.xlabel('Price')
+              plt.ylabel('Revenue Generated')
+
+              # Converting plot to PIL Image
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              plot_image = Image.open(buf)
+              plt.close()
+
+              return {'plot_image': plot_image}
+
+          price_vs_revenue_analysis = analyze_price_vs_revenue(result_df)
+
+          # Summarize findings
+          def summarize_findings(df):
+              # General statistics
+              general_stats = df.describe()
+
+              # Identify outliers using IQR
+              Q1 = df.quantile(0.25)
+              Q3 = df.quantile(0.75)
+              IQR = Q3 - Q1
+              outliers = ((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).sum()
+
+              # Sales performance and trends
+              sales_trends = df.groupby('Product type')[['Number of products sold', 'Revenue generated']].agg('sum').reset_index()
+
+              # Visualize the relationship between number of products sold and revenue generated
+              plt.figure(figsize=(10, 6))
+              sns.scatterplot(x='Number of products sold', y='Revenue generated', hue='Product type', data=df)
+              plt.title('Product Sales and Revenue Generated')
+              plt.xlabel('Number of Products Sold')
+              plt.ylabel('Revenue Generated')
+              plt.legend()
+              buf = BytesIO()
+              plt.savefig(buf, format='png')
+              buf.seek(0)
+              img = Image.open(buf)
+              plt.close()
+
+              # Summarize findings in a DataFrame
+              summary_df = pd.DataFrame({'Aspect': ['General Statistics', 'Outliers', 'Sales Trends'],
+                                         'Details': [str(general_stats), str(outliers), str(sales_trends)]})
+
+              return {'dataframe_summary': summary_df, 'sales_trends_visualization': img}
+
+          findings_summary = summarize_findings(df)
+
+          # Convert plot to image
+          def plot_to_pillow_image(df):
+              fig, ax = plt.subplots()
+              ax.plot(df['x'], df['y'])
+
+              # Create a bytes buffer for the image
+              buffer = BytesIO()
+              # Save the plot to the buffer
+              plt.savefig(buffer, format='png')
+              # Move to the beginning of the buffer
+              buffer.seek(0)
+
+              # Create a Pillow image from the buffer
+              image = Image.open(buffer)
+
+              # Close the buffer
+              buffer.close()
+
+              return image
+
+          # Plot to Pillow image
+          image = plot_to_pillow_image(df)
+
+          # Convert image to bytes
+          buf = BytesIO()
+          image.save(buf, format='PNG')
+          buf.seek(0)
+          img_bytes = buf.read()
+
+          return result_df, df_aggregated, price_vs_revenue_analysis, findings_summary, img_bytes
+
+  what are  sales by product type:
+    time: 49.43457889556885
+    agg: |
+      def get_results(df):
+          import pandas as pd
+          import matplotlib.pyplot as plt
+          from PIL import Image
+          import io
+          from io import BytesIO
+
+          def ensure_correct_data_types(df):
+              # Convert 'Product type' to categorical if it's not already
+              if df['Product type'].dtype != 'category':
+                  df['Product type'] = df['Product type'].astype('category')
+
+              # Convert 'Revenue generated' to numeric (float) if it's not already
+              if df['Revenue generated'].dtype != 'float64':
+                  df['Revenue generated'] = pd.to_numeric(df['Revenue generated'], errors='coerce')
+
+              # Return the modified DataFrame
+              return df
+
+          # Verify if both 'Product type' and 'Revenue generated' columns are present
+          if 'Product type' in df.columns and 'Revenue generated' in df.columns:
+              # Check for any missing values in these columns
+              missing_values = df[['Product type', 'Revenue generated']].isna().any()
+
+              # Construct a DataFrame to display the result of missing value check
+              result = pd.DataFrame({'Column': ['Product type', 'Revenue generated'],
+                                     'Missing Values': missing_values.values})
+          else:
+              missing_columns = ['Product type', 'Revenue generated'] - set(df.columns)
+              result = pd.DataFrame({'Missing Columns': missing_columns})
+
+          # Grouping the data by 'Product type' and summing up the 'Revenue generated' for each group
+          total_revenue_by_product_type = df.groupby('Product type')['Revenue generated'].sum().reset_index()
+
+          # Group data by 'Product type' and calculate sum of 'Revenue generated' for each group
+          sales_summarized = df.groupby('Product type')['Revenue generated'].sum().reset_index()
+
+          # Rename columns to 'Product type' and 'Total Sales'
+          sales_summarized.columns = ['Product type', 'Total Sales']
+
+          # Calculate total sales
+          df['Total Sales'] = df['Price'] * df['Number of products sold']
+          # Group by 'Product type' and sum 'Total Sales'
+          group_data = df.groupby('Product type')['Total Sales'].sum().reset_index()
+          # Calculate summary statistics
+          summary_stats = group_data.describe()
+
+          df_sorted = df.sort_values(by='Total Sales', ascending=False)
+
+          # Prepare data
+          df['Total Sales'] = df['Number of products sold'] * df['Price']
+          sales_summary = df.groupby('Product type')['Total Sales'].sum().reset_index()
+
+          # Create plot
+          plt.figure(figsize=(10, 6))
+          plt.bar(sales_summary['Product type'], sales_summary['Total Sales'])
+          plt.xlabel('Product Type')
+          plt.ylabel('Total Sales')
+          plt.title('Total Sales by Product Type')
+          plt.xticks(rotation=45)
+
+          # Convert plot to PIL Image
+          buf = io.BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img = Image.open(buf)
+
+          agg_data = df.groupby('Product type')['Revenue generated'].sum().reset_index()
+          plt.figure(figsize=(10, 6))
+          bars = plt.bar(agg_data['Product type'], agg_data['Revenue generated'], color=plt.cm.Paired(range(len(agg_data))))
+          plt.xlabel('Product Type')
+          plt.ylabel('Total Revenue Generated')
+          plt.title('Sales by Product Type')
+          plt.xticks(rotation=45)
+          plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+          plt.tight_layout()
+
+          buf = BytesIO()
+          plt.savefig(buf, format='png')
+          buf.seek(0)
+          img = Image.open(buf)
+          plt.close()
+
+          return {'visual_result': img, 'numerical_result': agg_data.to_json(orient='split', index=False)}

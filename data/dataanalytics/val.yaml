@@ -1,0 +1,212 @@
+Demand and supply analysis:
+  path: rides.csv
+  desc:
+    The demand for a product or service is the quantity of that product or service the customers are willing to purchase at any given price during a particular period. And the supply for a product or service is the quantity the producers are willing to provide in the market at a particular price and a particular period.
+    Demand and Supply analysis means analyzing the relationship between the quantity demanded and the quantity supplied. It helps businesses understand the factors influencing consumer demand to maximize profits.
+  questions:
+    q1: relationship between the number of drivers active per hour and the number of riders active per hour
+    q2: elasticity of demand for rides concerning the number of active drivers per hour
+    q3: calculate and visualise supply ratio
+    q4: make a summary of the above analisys.
+Market Basket Analysis:
+  path: market_basket_dataset.csv
+  desc:
+    Market Basket Analysis is a valuable tool for businesses seeking to optimize their product offerings, increase cross-selling opportunities, and improve marketing strategies. It can lead to higher revenue, enhanced customer satisfaction, and overall business success.
+  plan: |
+    Below is the process you can follow for the task of Market Basket Analysis as a Data Science professional:
+    Gather transactional data, including purchase history, shopping carts, or invoices.
+    Analyze product sales and trends.
+    Use algorithms like Apriori or FP-growth to discover frequent item sets and generate association rules.
+    Interpret the discovered association rules to gain actionable insights.
+    Develop strategies based on the insights gained from the analysis.
+  questions:
+    q1: name 10 most popular items sold by the store
+    q2: make a customer behavior analysis
+    q3: use Apriori algorithm to create association rules
+RFM analysis:
+  path:
+    rfm_data.csv
+  desc: |
+    RFM Analysis is a concept used by Data Science professionals, especially in the marketing domain for understanding and segmenting customers based on their buying behaviour.
+    Using RFM Analysis, a business can assess customers’:
+    recency (the date they made their last purchase)
+    frequency (how often they make purchases)
+    and monetary value (the amount spent on purchases)
+    Recency, Frequency, and Monetary value of a customer are three key metrics that provide information about customer engagement, loyalty, and value to a business.
+  questions:
+    q1: calculate rfm values
+    q2: calculate rfm scores
+    q3: calculate final RFM score and the value segment according to the scores
+    q4: plot segment distribution
+    q5: calculate RFM customer segments
+    q6: analyze the distribution of customers across different RFM customer segments within each value segment
+    q7: analyze the distribution of RFM values within the Champions segment
+    q8: analyze the correlation of the recency, frequency, and monetary scores within the champions segment
+    q9: calculate number of customers in all the segments
+    q10: analyze and plot the recency, frequency, and monetary scores of all the segments
+Fitness Watch Data Analysis:
+  path: Apple-Fitness-Data.csv
+  desc: Fitness Watch Data Analysis is a crucial tool for businesses in the health and wellness domain. By analyzing user data from fitness wearables, companies can understand user behaviour, offer personalized solutions, and contribute to improving users’ overall health and well-being.
+  plan: |
+    Below is the process we can follow while working on the problem of Fitness Watch Data Analysis:
+
+    Collect data from fitness watches, ensuring it’s accurate and reliable.
+    Perform EDA to gain initial insights into the data.
+    Create new features from the raw data that might provide more meaningful insights.
+    Create visual representations of the data to communicate insights effectively.
+    Segment user’s activity based on time intervals or the level of fitness metrics and analyze their performance.
+  questions:
+    q1: plot distance covered over time
+    q2: plot energy burned over time
+    q3: plot walking speed over time
+    q4: calculate and look at the average step counts per day
+    q5: plot walking efficiency over time
+    q6: look at the step count and walking speed variations by time intervals
+    q7: compare the daily average of all the health and fitness metrics
+Air Quality Index:
+  path: delhiaqi.csv
+  desc: Air Quality Index Analysis aims to provide a numerical value representative of overall air quality, essential for public health and environmental management.
+  plan: |
+    Below are the steps we can follow for the task of Air Quality Index Analysis:
+
+    Gather air quality data from various sources, such as government monitoring stations, sensors, or satellite imagery.
+    Clean and preprocess the collected data.
+    Calculate the Air Quality Index using standardized formulas and guidelines provided by environmental agencies.
+    Create visualizations, such as line charts or heatmaps, to represent the AQI over time or across geographical regions.
+    Compare the AQI metrics of the location with the recommended air quality metrics.
+  questions:
+    q1: plot  intensity of each pollutant over time in the air quality
+    q2: Calculate Air Quality Index
+    q3: plot the AQI of Delhi in January
+    q4: plot AQI category distribution
+    q5: plot the distribution of pollutants in the air quality of Delhi
+    q6: plot correlation between pollutants
+    q7: plot hourly average trends of AQI in Delhi
+Ads CTR Forecasting:
+  path: ctr.csv
+  desc: Ads CTR Analysis and Forecasting are crucial for businesses to assess the return on investment (ROI) of their advertising efforts and make data-driven decisions to improve ad performance.
+  plan: |
+    Below are the steps we can follow for the task of Ads CTR Analysis and Forecasting:
+
+    Gather ad data, including the number of ad impressions (how often an ad was shown), the number of clicks, and any other relevant metrics.
+    Explore the data to understand its characteristics and distribution. Calculate basic statistics, such as the mean CTR (Click-Through Rate) and standard deviation.
+    Create visualizations, such as line charts or bar graphs, to represent CTR trends over time.
+    Conduct A/B tests if necessary to compare the performance of different ad variations.
+    Analyze the CTR data to identify factors that influence ad performance.
+    Build a forecasting model to predict future CTR values.
+  questions:
+    q1: plot clicks and impressions over time
+    q2: plot relationship between clicks and impressions
+    q3: calculate and visualize CTR over time
+    q4: plot  average CTR by day of the week
+    q5: compare the CTR on weekdays and weekends
+    q6: compare the impressions and clicks on weekdays and weekends
+Cohort Analysis:
+  path: cohorts.csv
+  desc: Cohort analysis is valuable for businesses as it allows them to understand user behaviour in a more granular and actionable way.
+  plan: |
+    Below is the process we can follow for the task of Cohort Analysis:
+
+    The first step is to define the cohorts based on a specific characteristic or event. For example, in an e-commerce platform, cohorts could be defined based on the month of a user’s first purchase.
+    Gather relevant data for analysis.
+    Determine the time intervals you want to analyze.
+     Group users into cohorts based on the defined characteristic or event.
+    Choose the key performance metrics you want to analyze.
+    Calculate the chosen metrics for each cohort over the specified time periods.
+    Create visualizations to present your findings effectively.
+  questions:
+    q1: plot trend of the new and returning users over time
+    q2: plot trend of duration over time
+    q3: plot correlation between the variables
+    q4: plot cohort analysis
+    q5: plot weekly average of the new and returning users and the duration
+    q6: make cohort matrix of weekly averages
+Customer Acquisition Cost Analysis:
+  path: customer_acquisition_cost_dataset.csv
+  desc: Customer Acquisition Cost Analysis is a valuable tool for businesses to assess the efficiency and effectiveness of their customer acquisition efforts. It helps make informed decisions about resource allocation and marketing strategies, ultimately contributing to the company’s growth and profitability.
+  plan: |
+    Below is the process we can follow for the task of customer acquisition cost analysis as a Data Science professional:
+
+    Begin by collecting relevant data related to customer acquisition expenses.
+    Segment your customer acquisition costs to understand which channels or strategies are driving customer acquisition.
+    Identify key metrics that will help you calculate CAC.
+    Calculate CAC for each customer acquisition channel or strategy.
+    Analyze and find patterns to optimize your CAC.
+  questions:
+    q1: calculate customer acquisition cost
+    q2: plot the CAC by marketing channels
+    q3: plot relationship between new customers acquired and CAC
+    q4: make summary statistics of all the marketing channels
+    q5: calculate conversion rate of this marketing campaign
+    q6: find break-even customers for each marketing channel
+    q7: compare the actual customers acquired with the break-even customers for each marketing channel
+Customer Behaviour Analysis:
+  path: ecommerce_customer_data.csv
+  desc: Customer Behavior Analysis is a process that involves examining and understanding how customers interact with a business, product, or service. This analysis helps organizations make informed decisions, tailor their strategies, and enhance customer experiences.
+  plan: |
+    Below is the process we can follow for the task of Customer Behaviour Analysis:
+
+    Collect data related to customer interactions. It can include purchase history, website visits, social media engagement, customer feedback, and more.
+    Identify and address data inconsistencies, missing values, and outliers to ensure the data’s quality and accuracy.
+    Calculate basic statistics like mean, median, and standard deviation to summarize data.
+    Create visualizations such as histograms, scatter plots, and bar charts to explore trends, patterns, and anomalies in the data.
+    Use techniques like clustering to group customers based on common behaviours or characteristics.
+  questions:
+    q1: plot  distribution of age
+    q2: plot gender distribution
+    q3: plot relationship between the product browsing time and the total pages viewed
+    q4: plot average total pages viewed by gender
+    q5: plot average total pages viewed by devices
+    q6: calculate the customer lifetime value and visualize segments based on the customer lifetime value
+    q7: what is conversion funnel of the customers
+    q8: calculate  churn rate of the customers
+User Engagement Analysis:
+  path: bounce-rate.csv
+  desc: User Engagement Analysis helps businesses understand how people interact with their products or services, allowing them to make improvements that make users happier and more likely to stick around. It helps businesses create better UI/UX for their customers and ultimately achieve their goals.
+    User Engagement Analysis helps various types of businesses, including e-commerce, social media, mobile apps, and online platforms. For example, an e-commerce company can use it to understand how customers navigate their website, what products they like, and how long they stay on each page. It helps the company optimize their website design, personalize product recommendations, and improve marketing strategies to increase customer satisfaction and loyalty.
+    For User Engagement Analysis, businesses need data that captures how users interact with their product, service, or platform. It includes information like the number of times users visit a website or app, the actions they take (such as clicks or purchases), how long they stay on a page or within a session, or any feedback they provide.
+  questions:
+    q1: ploat correlation matrix between features
+    q2: plot bounce rate categories (low, medium, high)
+    q3: plot average session duration of the users in each bounce rate segment
+    q4: who are the top 10 loyal users according to the number of sessions and average session duration
+    q5: relationship between the average session duration and the bounce rates
+    q6: segment users by retention reate and plot average bounce rate by retention segment
+    q7: what is the percentage of retained users segments
+Customer Lifetime Value Analysis:
+  path: customer_acquisition_data.csv
+  desc:
+    Customer lifetime value analysis is used to estimate the total value of customers to the business over the lifetime of their relationship. It helps companies determine how much to invest in customer acquisition and retention, as well as identify the most valuable customers to prioritize for retention efforts
+    By analyzing customer lifetime value, companies can identify the most effective marketing channels and campaigns for acquiring high-value customers, as well as develop targeted retention strategies to keep those customers engaged and loyal.
+  questions:
+    q1: histogram distribution of acquisition cost and revenue generated by the customer
+    q2: distribution of revenue?
+    q3:  compare the cost of acquisition across different channels and identify the most and least profitable channels
+    q4: which channels are most and least effective at converting customers
+    q5: calculate the total revenue by channel and have a look at the most and least profitable channels in terms of generating revenue
+    q6: calculate the return on investment (ROI) for each channel
+    q7: calculate the customer lifetime value from each channel
+    q8: compare the CLTV distributions of the social media and referral channels
+Supply chain analysis:
+  path: supply_chain_data.csv
+  desc: To analyze a company’s supply chain, we need data on the different stages of the supply chain, like data about sourcing, manufacturing, transportation, inventory management, sales and customer demographics.
+  questions:
+    q1: plot relationship between the price of the products and the revenue generated by them
+    q2: what are  sales by product type
+    q3: what is total revenue generated from shipping carriers
+    q4: what are Average lead time and Average Manufacturing Costs for all products of the company
+    q5: what is revenue generated by each SKU
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -12,7 +12,9 @@ with open("../../datasets/dataanalytics/sft_data.yaml") as f:
 
 
 dt = {}
-sft_openai = []
+sft_openai_train = []
+sft_openai_val = []
+en = 0
 for dsname, v in code_strings.items():
 
 
@@ -22,12 +24,23 @@ for dsname, v in code_strings.items():
         current_inp["messages"].append({"role": "assistant", "content": str(sft_data[dsname][taskname]["agg"])})
         # print(vv["code_strings"])
         # print(sft_data[dsname][taskname]["agg"])
-        sft_openai.append(current_inp)
+
+        if en<18:
+            sft_openai_train.append(current_inp)
+        else:
+            sft_openai_val.append(current_inp)
+        en += 1
 
 
-print(sft_openai)
-with open("../../datasets/dataanalytics/sft_openai.jsonl", 'w') as jsonl_file:
-    for item in sft_openai:
+
+with open("../../datasets/dataanalytics/sft_openai_train.jsonl", 'w') as jsonl_file:
+    for item in sft_openai_train:
+        json_line = json.dumps(item) + '\n'
+        jsonl_file.write(json_line)
+
+
+with open("../../datasets/dataanalytics/sft_openai_val.jsonl", 'w') as jsonl_file:
+    for item in sft_openai_val:
         json_line = json.dumps(item) + '\n'
         jsonl_file.write(json_line)
 

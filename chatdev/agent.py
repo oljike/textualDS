@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 from openai import OpenAI, AsyncOpenAI
 import json
+import asyncio
 
 
 OAI_PRICE1K = {
@@ -95,7 +96,47 @@ class ChatAgent():
         # First value is input token rate, second value is output token rate
         return (tmp_price1K[0] * n_input_tokens + tmp_price1K[1] * n_output_tokens) / 1000
 
-    async def astep(self, input_message, task_en, output):
+
+    async def astep_timeout(self, input_message, timeout=100):
+
+        try:
+            agent_output = await asyncio.wait_for(self.astep(input_message), timeout)
+        except asyncio.TimeoutError:
+            print("Timeout occurred. Rerunning the function...")
+            agent_output = await self.astep_timeout(input_message, timeout)  # Rerun the function
+        return agent_output
+
+    async def astep_timeout_coder(self, input_message, task_en, output, timeout=100):
+
+        try:
+            await asyncio.wait_for(self.astep_coder(input_message, task_en, output), timeout)
+        except asyncio.TimeoutError:
+            print("Timeout occurred. Rerunning the function...")
+            await self.astep_timeout_coder(input_message, task_en, output, timeout)  # Rerun the function
+
+    async def astep(self, input_message):
+        r"""Performs a single step in the chat with accumulating prompt messages.
+        """
+
+        input_prompt = self.stored_messages + [{"role": "user", "content": input_message}]
+
+        print('########## prompt for ' + self.role + ": ")
+        print(input_prompt)
+        # print(self.stored_messages)
+        response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
+
+        response = await self.aclient.chat.completions.create(
+                                                       model="gpt-4-0125-preview",
+                                                       response_format=response_format,
+                                                       messages=input_prompt)
+        self.get_cost(response)
+        response = response.choices[0].message.content
+        print('###### task {} completed'.format(input_message))
+        print(response)
+
+        return response
+
+    async def astep_coder(self, input_message, task_en, output):
         r"""Performs a single step in the chat with accumulating prompt messages.
         """
 
@@ -131,9 +172,16 @@ class ChatAgent():
         print('########## prompt for ' + self.role + ": ")
         print(self.stored_messages)
 
+
+        # if self.role == 'coder_agg':
+        #     model = "ft:gpt-3.5-turbo-0613:personal::8t8YROdV"
+        #     response_format = {"type": "text"}
+        # else:
+
+        model = "gpt-4-0125-preview"
         response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
         response = self.client.chat.completions.create(
-                                                   model="gpt-4-0125-preview",
+                                                   model=model,
                                                    response_format=response_format,
                                                    messages=self.stored_messages)
         cost = self.get_cost(response)

@@ -1,8 +1,6 @@
-*.sh
 chatdev/test.py
 *.out
 *.dat
-.streamlit
 .idea/
 *png
 *json
@@ -10,4 +8,4 @@ __pycache__
 database
 datasets/*
 /.ipynb_checkpoints/
-chatdev/api.json
+

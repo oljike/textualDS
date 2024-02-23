@@ -9,21 +9,19 @@ app_path = abspath(join(dirname(__file__), '..'))
 sys.path.append(app_path)
 from app.app_functions import process_uploaded_file, get_predefined_ds, load_predefined_ds, get_tasks, \
                                 explore_function, process_user_input, handle_execution, set_bg_hack, display_app_header
-from chatdev.flow import Flow
+from chatdev.flowV2 import Flow
 from app.database import init_connection, create_user, deduce_quota, extract_quota
 from memory_profiler import profile
 
 # @profile
 async def main():
-    set_bg_hack('dqw_background.png')
+    
+    set_bg_hack('background.png')
     df = None
     # Sidebar
     with st.sidebar:
 
-        st.sidebar.image('logo3.png', use_column_width=True)
-        # st.sidebar.title("Textual data analysis app")
-        # display_app_header("Textual data analysis app", '', True)
-
+        st.sidebar.image('logo2.png', use_column_width=True)
         st.sidebar.markdown(
             """
             <div style="display: flex; justify-content: center;">
@@ -84,7 +82,7 @@ async def main():
             # if 'current_quota' not in st.session_state:
             #     st.session_state.current_quota = extract_quota(client, email)
             # st.info("Your current free credit is $" + str(round(st.session_state.current_quota, 2)))
-            st.info("Your current free credit is $" + str(2))
+            st.info("Your current free credit is " + str(10) + " requests.")
 
             # st.write(st.session_state["auth"])
             # st.subheader("OpenAI Key")
@@ -131,13 +129,8 @@ async def main():
         # Create a button to clear the chat
     if auth_output:
 
-
-
-
-        # st.title(":orange[**Data Exploration**]")
         st.title(":blue[**Data Exploration**]")
-        # st.info("Press the 'Explore' button to enable chat.")
-        explore_button = st.button("Start chat", help="The Explore button perform initial exploration the data")
+        explore_button = st.button("Start exploration", help="The Explore button perform initial exploration the data")
 
         # Execute explore function when button is pressed
         if explore_button:
@@ -146,7 +139,7 @@ async def main():
                 explore_result = explore_function(df)
                 st.session_state["explore_result"] = explore_result
                 st.session_state["predefined_tasks"] = predefined_tasks
-                st.session_state["flow"] = Flow(df, explore_result)
+
             else:
                 st.warning("Please choose or upload a dataset before exploring.")
 
@@ -163,10 +156,12 @@ async def main():
 
             for msg in st.session_state["messages"]:
                 st.chat_message(msg["role"]).write(msg["content"])
+
             if prompt := st.chat_input():
                 # if not openai_api_key:
                 #     st.info("Please add your OpenAI API key to continue.")
                 #     st.stop()
+                st.session_state["flow"] = Flow(df, st.session_state["explore_result"])
 
                 # explore_result = st.session_state.get("explore_result", "")
                 st.session_state["messages"].append({"role": "user", "content": prompt})
@@ -184,36 +179,19 @@ async def main():
 
                 # save the history of bot responses and display in the chat.
                 st.session_state["messages"].append({"role": "assistant", "content": bot_response})
-                # st.chat_message("assistant").write(bot_response)
 
-                if isinstance(bot_response, Image.Image):
-                    st.chat_message("assistant").image(bot_response, caption="Generated Plot", use_column_width=True)
-                elif isinstance(bot_response, list):
-                    for v in bot_response:
-                        if isinstance(v, Image.Image):
-                            st.chat_message("assistant").image(v)
-                        else:
-                            st.chat_message("assistant").write(v)
-                elif isinstance(bot_response, dict):
-                    # Iterate through key-value pairs and display each value
-                    imgs_to_remove = []
-                    for k, v in bot_response.items():
-                        if isinstance(v, Image.Image):
-                            st.chat_message("assistant").write(k)
-                            st.chat_message("assistant").image(v)
-                            imgs_to_remove.append(k)
 
-                    for k in imgs_to_remove:
-                        del bot_response[k]
+                from app.app_functions import display_data
 
-                    st.chat_message("assistant").json(bot_response)
-                else:
-                    st.chat_message("assistant").write(bot_response)
+                for task, task_response in bot_response.items():
+                    st.write('Response to: ', task)
+                    display_data(st, task_response["result"])
+                    st.write("Short summary: ", task_response["analysis"])
 
                 st.session_state["messages"].append({"role": "assistant", "content": bot_response})
 
                 if st.button('Show code'):
-                    st.code(dynamic_function)
+                    st.code(dynamic_function[0])
 
 if __name__=="__main__":
     asyncio.run(main())
