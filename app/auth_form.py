@@ -20,7 +20,7 @@ async def auth_button():
         result = await oauth2.authorize_button(
             name="Continue with Google",
             icon="https://www.google.com.tw/favicon.ico",
-            redirect_uri="http://localhost:8501",
+            redirect_uri="https://tablegpt-bupvssekaq-uc.a.run.app/",
             scope="openid email profile",
             key="google",
             extras_params={"prompt": "consent", "access_type": "offline"},

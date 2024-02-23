@@ -67,12 +67,12 @@ def process_user_input(user_input, flow):
 
 def get_predefined_ds():
 
-    with open('datasets/dataanalytics/val.yaml','r') as file:
+    with open('data/dataanalytics/val.yaml','r') as file:
         ds_meta = yaml.load(file, Loader=yaml.FullLoader)
 
     datasets = {}
     for ds, v in ds_meta.items():
-        path = 'datasets/dataanalytics/' + v['path']
+        path = 'data/dataanalytics/' + v['path']
         datasets[ds] = path
 
     return datasets
@@ -80,7 +80,7 @@ def get_predefined_ds():
 
 def get_tasks(ds):
 
-    with open('datasets/dataanalytics/val.yaml','r') as file:
+    with open('data/dataanalytics/val.yaml','r') as file:
         ds_meta = yaml.load(file, Loader=yaml.FullLoader)
 
     questions = ds_meta[ds]['questions']
