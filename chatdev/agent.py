@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI, AsyncOpenAI
 import json
 import asyncio
-
+import streamlit as st
 
 OAI_PRICE1K = {
     "text-ada-001": 0.0004,
@@ -43,9 +43,11 @@ class ChatAgent():
         self.role = role
         self.system_message = system_message
 
-        with open('chatdev/api.json') as f:
-            data = json.load(f)
-            self.api_key = data['openai_api']
+        # with open('chatdev/api.json') as f:
+        #     data = json.load(f)
+        #     self.api_key = data['openai_api']
+
+        self.api_key = st.secrets["openai"]["api"]["API"]
         self.stored_messages = [{"role": "system", "content": self.system_message}]
 
         _client = AsyncOpenAI(
