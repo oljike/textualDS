@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_oauth import OAuth2Component
+from app.streamlit_oauth import OAuth2Component
 import os
 import base64
 import json
