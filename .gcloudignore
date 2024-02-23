@@ -2,7 +2,6 @@ chatdev/test.py
 *.out
 *.dat
 .idea/
-*png
 *json
 __pycache__
 database

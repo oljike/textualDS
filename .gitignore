@@ -4,7 +4,6 @@ chatdev/test.py
 *.dat
 .streamlit
 .idea/
-*png
 *json
 __pycache__
 database
