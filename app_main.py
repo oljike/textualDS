@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="TableGPT", page_icon="./app/frontend/app_images/icon.ico", layout="centered", initial_sidebar_state="auto", menu_items=None)
+
 from PIL import Image
 import matplotlib
 matplotlib.use('agg')
@@ -10,18 +12,15 @@ sys.path.append(app_path)
 from app.app_functions import process_uploaded_file, get_predefined_ds, load_predefined_ds, get_tasks, \
                                 explore_function, process_user_input, handle_execution, set_bg_hack, display_app_header
 from chatdev.flowV2 import Flow
-from app.database import init_connection, create_user, deduce_quota, extract_quota
-from memory_profiler import profile
 
-# @profile
+
 async def main():
-    
-    set_bg_hack('background.png')
+
+    set_bg_hack('./app/frontend/app_images/background.png')
     df = None
-    # Sidebar
     with st.sidebar:
 
-        st.sidebar.image('logo2.png', use_column_width=True)
+        st.sidebar.image('./app/frontend/app_images/logo.png', use_column_width=True)
         st.sidebar.markdown(
             """
             <div style="display: flex; justify-content: center;">
