@@ -1,3 +1,4 @@
+plots/
 chatdev/test.py
 *.out
 *.dat

@@ -6,6 +6,7 @@ import streamlit as st
 import base64
 from PIL import Image
 import numpy as np
+from io import BytesIO
 
 def display_data(st, data):
 
@@ -105,6 +106,7 @@ def detect_encoding(file_content):
 
 
 def process_uploaded_file(uploaded_file):
+
     file_content = uploaded_file.read()
     # Detect the encoding
     encoding = detect_encoding(file_content)
@@ -136,3 +138,42 @@ def display_app_header(main_txt, sub_txt, is_sidebar=False):
         st.sidebar.markdown(html_temp, unsafe_allow_html = True)
     else:
         st.markdown(html_temp, unsafe_allow_html = True)
+
+def print_welcome_page():
+    # st.title('Welcome to TableGPT!', )
+
+    font_size = "24px"
+    st.markdown(
+        '<p style="font-size: 30px; color: #020F59; font-weight: 600;font-weight: 700;">Data analysis made easy!</p>',
+        unsafe_allow_html=True)
+
+    # Horizontal line
+    st.markdown('<hr style="border-top: 2px solid #000000;">', unsafe_allow_html=True)
+
+    # Explanation of the app with customized font size and color
+    st.markdown(
+        '<p style="font-size: 24px; color: #020F59; font-weight: 600;">What is it?</p>',
+        unsafe_allow_html=True)
+
+    st.markdown(
+        '<p style="font-size: 20px; color: #020F59; font-weight: normal;">TableGPT allows You to perform data analysis using simple text questions. '
+        'No coding. Upload your datasets and use plain English queries to gain valuable insights.</p>',
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        '<p style="font-size: 24px; color: #020F59; font-weight: 600;">For whom?</p>',
+        unsafe_allow_html=True)
+    st.markdown(
+        '<p style="font-size: 20px; color: #020F59; font-weight: normal;">Data analytics, product and project managers, marketing professionals, finance experts, business owners and anyone with an Excel file to analyse.</p>',
+        unsafe_allow_html=True
+    )
+
+    # Horizontal line
+    st.markdown('<hr style="border-top: 2px solid #000000;">', unsafe_allow_html=True)
+    st.markdown(
+        '<p style="font-size: 24px; color: #020F59; font-weight: 600;">How to use it</p>',
+        unsafe_allow_html=True)
+    st.image("./app/frontend/app_images/demo.gif", caption='', use_column_width=True)
+

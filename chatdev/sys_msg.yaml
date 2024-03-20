@@ -94,3 +94,6 @@ Return the result in the following format: {format}"
 "analyzer": "Your goal is to inteprete the data analysis task that was given by user. You need the importance, meaning,
  how it is used in business and why it is useful. Also, you need to relate it the data columns which will be provided.
  Be short and clear, no more than 5 sentences."
+
+"explorer": "Your goal is to generate top 3 data analysis metrics which can be calculated for a particular dataset.
+ The user provides you with dataset columns. Return a valid JSON object in the following format: {format}."

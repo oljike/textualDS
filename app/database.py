@@ -14,13 +14,12 @@ def init_connection() -> Client:
         return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
 
-def create_user(client, username, quota=2):
+def create_user(client, username, quota=5):
 
     new_user_data = {'username': username, 'quota': quota}  # Adjust as needed
 
     data_ex, _ = client.table("user_quota").select("username").eq('username', username).execute()
 
-    print(data_ex)
     if len(data_ex[-1]) == 0:
         try:
             data_ins, _ = client.table("user_quota").insert(new_user_data).execute()
@@ -32,7 +31,7 @@ def create_user(client, username, quota=2):
         print("User already created")
 
 
-def deduce_quota(client, username, cost=0.1):
+def deduce_quota(client, username, cost=1):
 
     user_response, _ = client.table("user_quota").select('quota').eq('username', username).execute()
     # Check if the user exists
@@ -56,7 +55,7 @@ def deduce_quota(client, username, cost=0.1):
         print(f"User {username} not found.")
 
 
-def extract_quota(clint, username):
+def extract_quota(client, username):
     user_response, _ = client.table("user_quota").select('quota').eq('username', username).execute()
     if len(user_response[-1]) > 0:
         current_quota = user_response[-1][0]['quota']
@@ -64,7 +63,6 @@ def extract_quota(clint, username):
     else:
         print(f"User {username} not found.")
 
-client = init_connection()
-create_user(client, "akm22", quota=2)
-deduce_quota(client, "akm2232", 0.1)
-
+# client = init_connection()
+# create_user(client, "akm22", quota=2)
+# deduce_quota(client, "akm2232", 0.1)

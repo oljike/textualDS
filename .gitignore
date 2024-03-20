@@ -1,3 +1,4 @@
+plots/
 *.sh
 chatdev/test.py
 *.out

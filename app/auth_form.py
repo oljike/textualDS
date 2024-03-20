@@ -20,10 +20,10 @@ async def auth_button():
         result = await oauth2.authorize_button(
             name="Continue with Google",
             icon="https://www.google.com.tw/favicon.ico",
-            redirect_uri="https://tablegpt.app/",
+            redirect_uri="http://localhost:8501",
             scope="openid email profile",
             key="google",
-            extras_params={"prompt": "consent", "access_type": "offline"},
+            extras_params={"prompt": "consent", "access_type": "offline", "primary-color": "#FFFF00"},
             use_container_width=True,
             pkce='S256',
         )
