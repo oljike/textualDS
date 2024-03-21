@@ -174,18 +174,20 @@ async def main():
 
                 st.session_state["messages"].append({"role": "user", "content": prompt})
                 st.chat_message("user").write(prompt)
-                with st.spinner("Analyst is thinking..."):
-                    # stop_execution = st.button("Stop Execution", key="stop_execution_button")
-                    # if stop_execution:
-                    #     st.warning("Execution stopped by user.")
-                    #     st.stop()
+                current_quota = extract_quota(client, email)
+                if current_quota > 0:
+                    with st.spinner("Analyst is thinking..."):
+                        flow = st.session_state["flow"]
+                        bot_response, dynamic_function, flow = await handle_execution(flow, prompt) #process_user_input(prompt, flow)
+                        st.session_state["flow"] = flow
+                else:
+                    st.info("You are out of credits! We will add you to the waitlist.")
+                    st.stop()
 
-                    flow = st.session_state["flow"]
-                    bot_response, dynamic_function, flow = await handle_execution(flow, prompt) #process_user_input(prompt, flow)
-                    st.session_state["flow"] = flow
+                new_quota = deduce_quota(client, email)
+                st.session_state.current_quota = new_quota
+                # if st.session_state.current_quota == 0:
 
-                deduce_quota(client, email)
-                st.session_state.current_quota = extract_quota(client, email)
 
                 # save the history of bot responses and display in the chat.
                 st.session_state["messages"].append({"role": "assistant", "content": bot_response})
