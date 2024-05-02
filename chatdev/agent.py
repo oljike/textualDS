@@ -1,8 +1,12 @@
 from typing import Any, Dict, List, Optional
 from openai import OpenAI, AsyncOpenAI
+from groq import AsyncGroq
 import json
 import asyncio
 import streamlit as st
+import base64
+import requests
+import tiktoken
 
 OAI_PRICE1K = {
     "text-ada-001": 0.0004,
@@ -38,7 +42,7 @@ OAI_PRICE1K = {
 
 class ChatAgent():
 
-    def __init__(self, role, system_message, json_format=False, keep_history=True):
+    def __init__(self, role, system_message, json_format=False, keep_history=True, fast=False):
 
         self.role = role
         self.system_message = system_message
@@ -47,15 +51,23 @@ class ChatAgent():
         #     data = json.load(f)
         #     self.api_key = data['openai_api']
 
-        self.api_key = st.secrets["openai"]["api"]["API"]
+
         self.stored_messages = [{"role": "system", "content": self.system_message}]
 
-        _client = AsyncOpenAI(
-            # provide a dummy API key so that requests made directly will always fail
-            api_key='<this client should never be used directly!>',
-        )
+        if fast:
+            self.api_key = st.secrets["groq"]["api"]["API"]
+            self.aclient = AsyncGroq(api_key=self.api_key)
+            self.model = "llama3-70b-8192"
+        else:
+            self.api_key = st.secrets["openai"]["api"]["API"]
+            _client = AsyncOpenAI(
+                # provide a dummy API key so that requests made directly will always fail
+                api_key='<this client should never be used directly!>',
+            )
+            self.aclient = _client.with_options(api_key=self.api_key)
+            self.model = "gpt-4-0125-preview"
 
-        self.aclient = _client.with_options(api_key=self.api_key)
+        self.encoding = tiktoken.encoding_for_model(self.model)
         self.client = OpenAI(api_key=self.api_key)
         self.json_mode = json_format
         self.keep_history = keep_history
@@ -108,6 +120,15 @@ class ChatAgent():
             agent_output = await self.astep_timeout(input_message, timeout)  # Rerun the function
         return agent_output
 
+    async def astep_timeout_vis(self, task, input_message, timeout=100):
+
+        try:
+            agent_output = await asyncio.wait_for(self.astep_vis(task, input_message), timeout)
+        except asyncio.TimeoutError:
+            print("Timeout occurred. Rerunning the function...")
+            agent_output = await self.astep_timeout_vis(task, input_message, timeout)  # Rerun the function
+        return agent_output
+
     async def astep_timeout_coder(self, input_message, task_en, output, timeout=100):
 
         try:
@@ -120,15 +141,29 @@ class ChatAgent():
         r"""Performs a single step in the chat with accumulating prompt messages.
         """
 
+        # we do not save all messages, because not all agents need the context of previous messages
+        # so, in self.stored_messages we save only system prompt for most agents (except planner)
         input_prompt = self.stored_messages + [{"role": "user", "content": input_message}]
 
+        print('calculating tokens...')
+        input_num_tokens = len(self.encoding.encode('\n'.join(s["content"] for s in input_prompt)))
+        print("num input tokens before: ", input_num_tokens)
+        while input_num_tokens > 128000:
+
+            for en, inp in enumerate(input_prompt):
+                if "Analysis Result: " in inp["content"]:
+                    input_prompt.pop(en)
+
+            input_num_tokens = len(self.encoding.encode('\n'.join(s["content"] for s in input_prompt)))
+
+        print("num input tokens after: ", input_num_tokens)
         print('########## prompt for ' + self.role + ": ")
         print(input_prompt)
         # print(self.stored_messages)
         response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
 
         response = await self.aclient.chat.completions.create(
-                                                       model="gpt-4-0125-preview",
+                                                       model=self.model,
                                                        response_format=response_format,
                                                        messages=input_prompt)
         self.get_cost(response)
@@ -137,6 +172,54 @@ class ChatAgent():
         print(response)
 
         return response
+
+    async def astep_vis(self, task, input_plots):
+        r"""
+        Create an api request for analyzing visually.
+        :param input_plots: list of plots
+        :return:
+        """
+
+        def encode_image(image_path):
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+
+        # Path to your image
+        base64_images = []
+        user_messages = [
+            {
+                "type": "text",
+                "text": task
+            },
+        ]
+        for plot_path in input_plots:
+            base64_image = encode_image(plot_path)
+            input_ = {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+            user_messages.append(input_)
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+
+        payload = {
+            "model": "gpt-4-turbo",
+            "messages": [
+
+                self.stored_messages[0],
+                {
+                    "role": "user",
+                    "content": user_messages
+                }
+            ],
+            "max_tokens": 300
+        }
+
+        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        return response.json()['choices'][0]['message']['content']
+
 
     async def astep_coder(self, input_message, task_en, output):
         r"""Performs a single step in the chat with accumulating prompt messages.
@@ -150,7 +233,7 @@ class ChatAgent():
         response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
 
         response = await self.aclient.chat.completions.create(
-                                                       model="gpt-4-0125-preview",
+                                                       model=self.model,
                                                        response_format=response_format,
                                                        messages=input_prompt)
         self.get_cost(response)
@@ -183,7 +266,7 @@ class ChatAgent():
         model = "gpt-4-0125-preview"
         response_format = {"type": "json_object"} if self.json_mode else {"type": "text"}
         response = self.client.chat.completions.create(
-                                                   model=model,
+                                                   model=self.model,
                                                    response_format=response_format,
                                                    messages=self.stored_messages)
         cost = self.get_cost(response)

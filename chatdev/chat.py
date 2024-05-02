@@ -101,6 +101,7 @@ class Chat:
         '''
 
         # planner_response = await self.planner.astep(task)
+        print("start achat!")
         planner_response = await self.planner.astep_timeout(task, 100)
         print('########## planner_response: ', planner_response)
 
@@ -125,4 +126,11 @@ class Chat:
         print('########## coder_response ', coder_agg_response)
         json_res = json.loads(coder_agg_response)
         coder_function = json_res['function']
+
+        # add the format checker here
+        formatter_response = await self.formatter.astep_timeout(coder_function, 100)
+        json_res = json.loads(formatter_response)
+        coder_function = json_res['function']
+
+
         chat_outputs[task] = coder_function

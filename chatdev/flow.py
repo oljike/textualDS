@@ -10,6 +10,7 @@ import json
 import yaml
 import types
 import asyncio
+import traceback
 import pandas as pd
 import matplotlib
 matplotlib.use('TkAgg')
@@ -26,18 +27,18 @@ class Flow:
         with open('chatdev/sys_msg.yaml', 'r') as file:
             sys_data = yaml.load(file, Loader=yaml.FullLoader)
 
+        ### main agents
+        # LLM which classifies input task into 3 categories
+        classifier_format = '''{"explanation": "the explanation of the answer", "answer": "easy/medium/hard/offtopic/clarification", "new_tasks": "[a list of strings with new tasks]"}'''
+        classifier_sys_msg = sys_data['taskClassifier'].format(format=classifier_format, columns=f"{', '.join(self.df.columns)}").replace('\n', '')
+        classifier = ChatAgent('classifier', classifier_sys_msg, json_format=True, keep_history=True, fast=False)
 
-        explorer_format = '''{"description":"the description of the metrcc","list":"the numbered list metrics generated"}'''
-        explorer_sys_msg = sys_data['explorer'].format(columns=columns_desc, format=explorer_format).replace('\n', '')
-        explorer = ChatAgent('explorer', explorer_sys_msg, json_format=True, keep_history=True)
+        chatter_sys_msg = sys_data['chatter'].format(columns=f"{', '.join(self.df.columns)}")
+        chatter = ChatAgent('chatter', chatter_sys_msg, json_format=False, keep_history=True, fast=False)
 
-        planner_format = '''{"description":"the description of the plan","plan":"the numbered list plan"}'''
+        planner_format = '''{"description":"the description of the plan","plan":"[a list of numbered plan items]"}'''
         planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc, format=planner_format).replace('\n', '')
         planner = ChatAgent('planner', planner_sys_msg, json_format=True, keep_history=True)
-
-        json_format = '''{"explanation": "the explanation of the code", "function":  "def get_results(df):  python code here"}'''
-        coder_sys_msg = sys_data['coder'].format(columns=columns_desc, format=json_format).replace('\n', '')
-        coder = ChatAgent('coder', coder_sys_msg, json_format=True, keep_history=True)
 
         coder_base_format = '''{"explanation": "the explanation of the code", "code":  "python code here"}'''
         coder_base_sys_msg = sys_data['coderBase'].format(columns=columns_desc, format=coder_base_format).replace('\n', '')
@@ -47,25 +48,36 @@ class Flow:
         coder_agg_sys_msg = sys_data['coderAgg'].format(columns=columns_desc, format=coder_agg_format).replace('\n', '')
         coder_agg = ChatAgent('coder_agg', coder_agg_sys_msg, json_format=True, keep_history=True)
 
-        checker_format = ''' {"explanation": "the explanation of the function validness", "result":  "True if valid /False if not valid"}'''
-        coder_sys_msg = sys_data['checker'].format(columns=self.columns, format=checker_format).replace('\n', '')
-        checker = ChatAgent('checker', coder_sys_msg, json_format=True, keep_history=True)
+        # check the function format
+        return_format = '''{"plots": ["path/to/plot1.png", "path/to/plot2.png", ...],
+                            "empirical": {"result1": { "value": 123, "explanation": "short explanation" }, ...}}'''
+        formetter_format = '''{"explanation": "the explanation of the answer", "function":  "def get_results(df):  transformed function here""}'''
+        formetter_sys_msg = sys_data['formatter'].format(format=formetter_format, return_format=return_format)
+        formatter = ChatAgent('formatter', formetter_sys_msg, json_format=True, keep_history=True, fast=False)
 
-        # small token size LLM which just fixed current function
+        # analyze the results
+        analyzer_sys_msg = sys_data['analyzer']
+        analyzer = ChatAgent('analyzer', analyzer_sys_msg, json_format=False, keep_history=True, fast=False)
+
+        analyzervis_sys_msg = sys_data['analyzervis']
+        analyzervis = ChatAgent('analyzervis', analyzervis_sys_msg, json_format=False, keep_history=True, fast=False)
+
+        # experiment agents
+        explorer_format = '''{"description":"the description of the metrcc","list":"the numbered list metrics generated"}'''
+        explorer_sys_msg = sys_data['explorer'].format(columns=columns_desc, format=explorer_format).replace('\n', '')
+        explorer = ChatAgent('explorer', explorer_sys_msg, json_format=True, keep_history=True)
+        json_format = '''{"explanation": "the explanation of the code", "function":  "def get_results(df):  python code here"}'''
+        coder_sys_msg = sys_data['coder'].format(columns=columns_desc, format=json_format).replace('\n', '')
+        coder = ChatAgent('coder', coder_sys_msg, json_format=True, keep_history=True)
+
+        # corrector
         corrector_format = '''{"explanation": "the explanation of the function error and how to fix it", "function":  the fixed function }'''
-        corrector_sys_msg = sys_data['corrector'].format(columns=self.columns, format=corrector_format).replace('\n', '')
+        corrector_sys_msg = sys_data['corrector'].format(columns=self.columns, format=corrector_format, return_format=return_format).replace('\n','')
         corrector = ChatAgent('corrector', corrector_sys_msg, json_format=True, keep_history=True)
 
-        # small token size LLM which just fixed current function
-        classifier_format = '''{"explanation": "the explanation of the answer", "answer": "easy/medium/hard", "new_tasks": "[a list of strings with new tasks]"}'''
-        classifier_sys_msg = sys_data['taskClassifier'].format(format=classifier_format, columns=f"{', '.join(self.df.columns)}").replace('\n', '')
-        classifier = ChatAgent('classifier', classifier_sys_msg, json_format=True, keep_history=True)
+        self.chatroom = Chat([planner, coder_base, corrector, coder_agg, classifier, chatter, analyzer, formatter, analyzervis], ds_name)
 
-        # small token size LLM which just fixed current function
-        analyzer_sys_msg = sys_data['analyzer'].format(format=classifier_format, columns=f"{', '.join(self.df.columns)}").replace('\n', '')
-        analyzer = ChatAgent('analyzer', analyzer_sys_msg, json_format=False, keep_history=True)
-
-        self.chatroom = Chat([coder, planner, checker, coder_base, coder_agg, corrector, classifier, analyzer, explorer], ds_name)
+        self.history = []
 
     @staticmethod
     def create_function(func_str, func_name='get_results', import_libraries=['numpy as np', 'json', 'pandas as pd',
@@ -98,7 +110,8 @@ class Flow:
             print("######## gen_en", gen_en)
             if gen_en > 5:
                 result = 'Impossible to generate result. Please, reformulate the task or make it more specific.'
-                all_results[task_item] = {"result": result, "analysis": "Unavailable"}
+                all_results[task_item] = {"result": result, "analysis": "Impossible to generate result. Please, reformulate the task or make it more specific.",
+                                          "analysisvis": "Unavailable"}
                 break
             gen_en += 1
 
@@ -106,15 +119,28 @@ class Flow:
                 dynamic_function = self.create_function(function_resp)
                 result = dynamic_function(self.df)
 
-                # summarize here. it basically includes the initial task, and the output of the functio
-                analyzer_input = f"Task: {task_item}. Data columns: {', '.join(self.df.columns)}"
+                # add visual part
+                result_analysisvis = await self.chatroom.analyzervis.astep_timeout_vis(task_item, result['plots'], 40)
+
+                # summarize here. it basically includes the initial task, and the output of the function
+                analyzer_input = f"Task: {task_item}. Data columns: {', '.join(self.df.columns)}. Visual Results: {result_analysisvis}. Analysis results: {str(result['empirical'])}"
                 result_analysis = await self.chatroom.analyzer.astep_timeout(analyzer_input, 40)
 
-                all_results[task_item] = {"result": result, "analysis": result_analysis}
+                all_results[task_item] = {"result": result, "analysisvis": result_analysisvis, "analysis": result_analysis}
                 all_funcs.append(function_resp)
+
+
+                # we explicitly save planner's messages because it need context of messages to plan better
+                self.chatroom.planner.update_messages({"role": "user", "content": task_item})
+                self.chatroom.planner.update_messages({"role": "user", "content": "Analysis Result: " + result_analysis})
+                print("******** PLANNER:")
+                print(self.chatroom.planner.stored_messages)
+
                 break
             except Exception as e:
-                coder_err = str(e)
+                # coder_err = str(e)
+                coder_err = traceback.format_exc()
+                coder_err = '\n'.join(coder_err.split('\n')[-3:])
                 print('########## error exception: ', coder_err)
                 corrector_inp = {"function": function_resp, "error": coder_err}
                 corrector_output = await self.chatroom.corrector.astep_timeout(str(corrector_inp))
@@ -137,11 +163,26 @@ class Flow:
         # classifier first
         classifier_output = await self.chatroom.classifier.astep_timeout(task, 25)
         classifier_output = json.loads(classifier_output)
+
+        if classifier_output["answer"] == "offtopic" or classifier_output["answer"] == "clarification":
+
+            chatter_output = await self.chatroom.chatter.astep_timeout(task, 25)
+
+            # offtopic_reply = classifier_output["explanation"]
+            # if len(classifier_output["new_tasks"]) > 0:
+            #     offtopic_reply += '\n' + '\n'.join(classifier_output["new_tasks"])
+
+            self.chatroom.chatter.update_messages({"role": "user", "content": task})
+            self.chatroom.chatter.update_messages({"role": "user", "content": chatter_output})
+
+            return {task: {"result": {"plots": []}, "offtopic": chatter_output}}, None
+
         if len(classifier_output['new_tasks']) > 2:
             task_list = classifier_output['new_tasks']
         else:
             task_list = [task]
 
+        print("Task list is ", task_list)
         # task coroutines
         task_coroutines = []
         chat_outputs = {}
@@ -161,6 +202,10 @@ class Flow:
 
         # Run the tasks concurrently
         await asyncio.gather(*function_coroutines)
+
+
+        for res in all_results.values():
+            self.chatroom.chatter.update_messages({"role": "user", "content": res["analysis"]})
 
         return all_results, all_funcs
 
@@ -183,7 +228,7 @@ if __name__=="__main__":
     init_desc = ""#explorer.init_desc()
 
     init_desc = f"{', '.join(data.columns)}."
-    prompt = "make a customer behavior analysis"
+    prompt = "calculate and visualise supply ratio"
     # prompt = "name 10 most popular items sold by the store"
     # prompt = "calculate and visualise supply ratio"
     flow = Flow(data, init_desc)

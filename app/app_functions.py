@@ -8,27 +8,31 @@ from PIL import Image
 import numpy as np
 from io import BytesIO
 
-def display_data(st, data):
+# @st.cache_data
+# def display_data(st, data):
+#
+#     if isinstance(data, dict):
+#         if len(data) < 10: # in case of its not a dataframe lets iterate over its elements and check its values
+#             for key, value in data.items():
+#                 st.chat_message("assistant").write(f"**{key}**:")
+#                 display_data(st, value)
+#         else:
+#             st.chat_message("assistant").write(data)
+#     elif isinstance(data, list):
+#         for item in data:
+#             display_data(st, item)
+#     elif isinstance(data, str):
+#         if 'png' in data:
+#             st.chat_message("assistant").image(data)
+#         else:
+#             st.chat_message("assistant").text(data)
+#     elif isinstance(data, bytes) or isinstance(data, Image.Image) or isinstance(data, np.ndarray) or isinstance(data, BytesIO):
+#         st.chat_message("assistant").image(data)  # Assuming data is a byte representation of an image
+#     else:
+#         st.chat_message("assistant").write(data)  # Handle other data types
 
-    if isinstance(data, dict):
-        if len(data) < 10: # in case of its not a dataframe lets iterate over its elements and check its values
-            for key, value in data.items():
-                st.chat_message("assistant").write(f"**{key}**:")
-                display_data(st, value)
-        else:
-            st.chat_message("assistant").write(data)
-    elif isinstance(data, list):
-        for item in data:
-            display_data(st, item)
-    elif isinstance(data, str):
-        if 'png' in data:
-            st.chat_message("assistant").image(data)
-        else:
-            st.chat_message("assistant").text(data)
-    elif isinstance(data, bytes) or isinstance(data, Image.Image) or isinstance(data, np.ndarray) or isinstance(data, BytesIO):
-        st.chat_message("assistant").image(data)  # Assuming data is a byte representation of an image
-    else:
-        st.chat_message("assistant").write(data)  # Handle other data types
+
+
 
 
 def set_bg_hack(main_bg):

@@ -3,6 +3,7 @@ st.set_page_config(page_title="TableGPT", page_icon="./app/frontend/app_images/i
 
 from PIL import Image
 import matplotlib
+import base64
 matplotlib.use('agg')
 import sys
 import asyncio
@@ -12,7 +13,7 @@ sys.path.append(app_path)
 from app.app_functions import process_uploaded_file, get_predefined_ds, load_predefined_ds, get_tasks, \
                                 explore_function, print_welcome_page, handle_execution, set_bg_hack, display_app_header
 from chatdev.flow import Flow
-from app.app_functions import display_data
+# from app.app_functions import display_data
 from app.auth_form import auth_button
 from app.database import init_connection, extract_quota, create_user, deduce_quota
 client = init_connection()
@@ -20,31 +21,65 @@ client = init_connection()
 with open("app/style.css" ) as css:
     st.markdown( f'<style>{css.read()}</style>', unsafe_allow_html=True)
 
+def nav_to(url):
+    nav_script = """
+        <meta http-equiv="refresh" content="0; url='%s'">
+    """ % (url)
+    st.write(nav_script, unsafe_allow_html=True)
+
+
+@st.cache_data
+def display_data(bot_response):
+
+    for task, data in bot_response.items():
+        print('data', data)
+        with st.chat_message("assistant"):
+            st.markdown(f"Task: {task}")
+    # add new llm here?
+
+        # display plots
+        if 'plots' in data['result'] and len(data['result']['plots']) > 0:
+            for plot in data['result']['plots']:
+                with st.chat_message("assistant"):
+                    st.image(plot)
+
+        with st.chat_message("assistant"):
+            if 'analysisvis' in data and 'analysis' in data:
+                st.markdown(f"Interpretation of plots: {data['analysisvis']}")
+                st.markdown(f"Short summary: {data['analysis']}")
+            elif 'offtopic' in data:
+                st.markdown(data['offtopic'])
+
+
 async def main():
 
+    query_params = st.query_params
+    user_email = query_params.get("email", [""])
+    user_email = base64.b64decode(user_email).decode("utf-8")
+    print(user_email)
+
+
+    # Check if the user is logged in (email is present)
+    if not user_email:
+        # Redirect the user to lol.com
+        nav_to("https://www.tablegpt.app")
+
     set_bg_hack('./app/frontend/app_images/background.jpg')
-    df = None
     with st.sidebar:
 
         st.sidebar.image('./app/frontend/app_images/logo.png', use_column_width=True)
 
-        try:
-            auth_output = await auth_button()
-            print(auth_output)
-        except Exception as e:
-            st.error(f"Bad sign-in request. Please, refresh the page. Error: {e}")
-            auth_output = None
-
         # auth_output = 'kek', 'Olzhas'
-        if auth_output is not None:
-            email, name = auth_output
-            st.subheader("Hello " + name + "!")
-
+        if user_email is not None:
+            email = user_email
+            st.subheader("Hello!")
 
             def clear_results():
                 st.session_state.pop("explore_result", None)
                 st.session_state.pop("predefined_tasks", None)
                 st.session_state.pop("messages", None)
+            # if st.button("New Chat"):
+            #     clear_results()
 
 
             create_user(client, email, quota=3)
@@ -58,6 +93,7 @@ async def main():
             # st.markdown(f'<div class="stInfo">{message}</div>', unsafe_allow_html=True)
 
             st.info("Your current free credit is " + str(st.session_state.current_quota) + " requests.")
+
             if st.session_state.current_quota == 0:
                 st.info("You are out of credits! We will add you to the waitlist.")
                 st.stop()
@@ -89,27 +125,45 @@ async def main():
                 if uploaded_file:
                     # st.sidebar.write("Filename: ", )
                     file_name = uploaded_file.name
-                    st.session_state["file_name"] = file_name
                     df = process_uploaded_file(uploaded_file)
-                    predefined_tasks = []
-                    # st.sidebar.subheader("Uploaded Data:")
-                    # st.sidebar.write(df)
-                    st.success("Dataset uploaded successfully!")
-                    # flow = Flow(df, explore_result)
 
-            else:
+                    if 'df' not in st.session_state or file_name != st.session_state.file_name:
+                        print("Initilising FLOW FUKIN AGAIN upload!")
+                        st.session_state.df = df
+                        st.session_state.file_name = file_name
+                        explore_result = explore_function(df)
+                        st.session_state["explore_result"] = explore_result
+                        st.session_state["flow"] = Flow(df, st.session_state["explore_result"])
+                    predefined_tasks = []
+                    st.success("Dataset uploaded successfully!")
+
+
+            elif dataset_option == "Choose a toy dataset":
                 # clear_results()
                 # st.session_state.pop("explore_result", None)
                 predefined_datasets = get_predefined_ds()
                 selected_dataset = st.selectbox("", predefined_datasets)
                 st.subheader(f"Selected dataset: {selected_dataset}")
-                st.session_state["file_name"] = selected_dataset
                 df = load_predefined_ds(predefined_datasets, selected_dataset)
+
+                if 'df' not in st.session_state or selected_dataset != st.session_state.file_name:
+
+                    if 'df' in st.session_state:
+                        print(df.shape, st.session_state.df.shape)
+
+                    print("Initilising FLOW FUKIN AGAIN toy!!!!")
+                    st.session_state.df = df
+                    st.session_state.file_name = selected_dataset
+                    print('df' in st.session_state)
+                    explore_result = explore_function(df)
+                    st.session_state["explore_result"] = explore_result
+                    st.session_state["flow"] = Flow(df, st.session_state["explore_result"])
+
                 predefined_tasks = get_tasks(selected_dataset)
-                # st.sidebar.subheader("Uploaded Data:")
-                # st.sidebar.write(df)
                 st.success("Dataset uploaded successfully!")
-                # flow = Flow(df, explore_result)
+                # explore_result = explore_function(df)
+                # st.session_state["explore_result"] = explore_result
+                # st.session_state["flow"] = Flow(df, st.session_state["explore_result"]
 
         st.sidebar.markdown("<br>", unsafe_allow_html=True)
 
@@ -123,25 +177,23 @@ async def main():
             unsafe_allow_html=True
         )
 
-    # if auth_output is None:
-    #     print_welcome_page()
-
-    if auth_output:
+    if user_email:
 
         st.subheader("")
 
-        if df is not None:
+        if 'df' in st.session_state:
 
+            df = st.session_state.df
             st.subheader('Data snapshot:')
             st.write(df.iloc[:100])
-            explore_result = explore_function(df)
-            st.session_state["explore_result"] = explore_result
+
             st.session_state["predefined_tasks"] = predefined_tasks
             explore_button = st.button("Generate queries for me",
                                        help="We help you to come up with new analysis ideas")
-            st.session_state["flow"] = Flow(df, st.session_state["explore_result"])
+
             if explore_button:
                 if len(predefined_tasks) > 0:
+
                     st.markdown(
                         '<p style="font-size: 22px; color: #020F59; font-weight: 500;">Recommended queries: </p>',
                         unsafe_allow_html=True)
@@ -160,14 +212,23 @@ async def main():
                         [f"- {item.strip('.').lower()}" for item in llm_metrics]))
         else:
             st.warning("Please choose or upload a dataset before exploring.")
-            # st.stop()
+            st.stop()
 
 
         if "messages" not in st.session_state:
             st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
 
-        for msg in st.session_state["messages"]:
-            st.chat_message(msg["role"]).write(msg["content"])
+        for message in st.session_state.messages:
+            if message["role"] == "user":
+
+                with st.chat_message("user"):
+                    st.markdown(message["content"])
+            else:
+                if isinstance(message["content"], str):
+                    with st.chat_message("assistant"):
+                        st.markdown(message["content"])
+                else:
+                    display_data(message["content"])
 
 
         st.markdown("""
@@ -180,44 +241,42 @@ async def main():
 
 
         if prompt := st.chat_input(placeholder="Type your message here..."):
-            print(prompt)
-            try:
-                # if not openai_api_key:
-                #     st.info("Please add your OpenAI API key to continue.")
-                #     st.stop()
 
-                st.session_state["messages"].append({"role": "user", "content": prompt})
-                st.chat_message("user").write(prompt)
-                current_quota = extract_quota(client, email)
-                if current_quota > 0:
+            # try:
+            # if not openai_api_key:
+            #     st.info("Please add your OpenAI API key to continue.")
+            #     st.stop()
+
+            st.session_state["messages"].append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            current_quota = extract_quota(client, email)
+            if current_quota > 0:
+
+                with st.chat_message("assistant"):
                     with st.spinner("Analyst is thinking..."):
                         flow = st.session_state["flow"]
                         bot_response, dynamic_function, flow = await handle_execution(flow, prompt) #process_user_input(prompt, flow)
-                        st.session_state["flow"] = flow
-                else:
-                    st.info("You are out of credits! We will add you to the waitlist.")
-                    st.stop()
+                # bot_response = {'task': {'result':{'plots': ['./plots/AQI_O3.png']}, 'analysis': 'lol', 'analysisvis': 'kek'}}
+                st.session_state["flow"] = flow
+            else:
+                st.info("You are out of credits! We will add you to the waitlist.")
+                st.stop()
 
-                new_quota = deduce_quota(client, email)
-                st.session_state.current_quota = new_quota
-                # if st.session_state.current_quota == 0:
+            new_quota = deduce_quota(client, email)
+            st.session_state.current_quota = new_quota
+            # if st.session_state.current_quota == 0:
 
 
-                # save the history of bot responses and display in the chat.
-                st.session_state["messages"].append({"role": "assistant", "content": bot_response})
+            # save the history of bot responses and display in the chat.
+            st.session_state["messages"].append({"role": "assistant", "content": bot_response})
+            display_data(bot_response)
 
-                for task, task_response in bot_response.items():
-                    st.chat_message("assistant").write(f"Task: {task}")
-                    display_data(st, task_response["result"])
-                    st.chat_message("assistant").write(f"Short summary: {task_response['analysis']}")
+            # if st.button('Show code'):
+            #     st.code(dynamic_function[0])
 
-                st.session_state["messages"].append({"role": "assistant", "content": bot_response})
-
-                # if st.button('Show code'):
-                #     st.code(dynamic_function[0])
-
-            except Exception as e:
-                st.error(f"Failed to process the request: {str(e)}")
+            # except Exception as e:
+            #     st.error(f"Failed to process the request: {str(e)}")
 
 if __name__=="__main__":
     asyncio.run(main())
