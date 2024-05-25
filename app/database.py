@@ -1,17 +1,24 @@
 import streamlit as st
 from supabase import Client, create_client
-
+import os
 
 __version__ = "0.2.2"
 @st.cache_resource
 def init_connection() -> Client:
+
     try:
-        return create_client(
-            st.secrets["connections"]["supabase"]["SUPABASE_URL"],
-            st.secrets["connections"]["supabase"]["SUPABASE_KEY"],
-        )
-    except KeyError:
-        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+        SUPABASE_URL = st.secrets["connections"]["supabase"]["SUPABASE_URL"],
+        SUPABASE_KEY = st.secrets["connections"]["supabase"]["SUPABASE_KEY"],
+    except:
+        SUPABASE_URL = os.getenv('SUPABASE_URL')
+        SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except KeyError as e:
+        print(e)
+        print("Supabase cpnnection errot")
 
 
 def create_user(client, username, quota=5):

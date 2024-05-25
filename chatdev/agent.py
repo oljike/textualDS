@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI, AsyncOpenAI
 from groq import AsyncGroq
 import json
+import os
 import asyncio
 import streamlit as st
 import base64
@@ -55,11 +56,17 @@ class ChatAgent():
         self.stored_messages = [{"role": "system", "content": self.system_message}]
 
         if fast:
-            self.api_key = st.secrets["groq"]["api"]["API"]
+            try:
+                self.api_key = st.secrets["groq"]["api"]["API"]
+            except:
+                self.api_key = os.getenv('groq_api_key')
             self.aclient = AsyncGroq(api_key=self.api_key)
             self.model = "llama3-70b-8192"
         else:
-            self.api_key = st.secrets["openai"]["api"]["API"]
+            try:
+                self.api_key = st.secrets["openai"]["api"]["API"]
+            except:
+                self.api_key = os.getenv('openai_api_key')
             _client = AsyncOpenAI(
                 # provide a dummy API key so that requests made directly will always fail
                 api_key='<this client should never be used directly!>',
