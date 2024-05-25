@@ -56,6 +56,8 @@ async def main():
 
     query_params = st.query_params
     user_email = query_params.get("email", [""])
+    if user_email == "":
+        nav_to("https://www.tablegpt.app")
     user_email = base64.b64decode(user_email).decode("utf-8")
     print(user_email)
 
