@@ -56,17 +56,16 @@ class ChatAgent():
         self.stored_messages = [{"role": "system", "content": self.system_message}]
 
         if fast:
-            try:
+            self.api_key = os.getenv('groq_api_key')
+            if self.api_key is None:
                 self.api_key = st.secrets["groq"]["api"]["API"]
-            except:
-                self.api_key = os.getenv('groq_api_key')
+
             self.aclient = AsyncGroq(api_key=self.api_key)
             self.model = "llama3-70b-8192"
         else:
-            try:
+            self.api_key = os.getenv('openai_api_key')
+            if self.api_key is None:
                 self.api_key = st.secrets["openai"]["api"]["API"]
-            except:
-                self.api_key = os.getenv('openai_api_key')
             _client = AsyncOpenAI(
                 # provide a dummy API key so that requests made directly will always fail
                 api_key='<this client should never be used directly!>',

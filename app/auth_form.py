@@ -7,8 +7,8 @@ import asyncio
 
 async def auth_button():
 
-    CLIENT_ID = st.secrets["gauth"]["endpoints"]["GAUTH_ID"]
-    CLIENT_SECRET = st.secrets["gauth"]["endpoints"]["GAUTH_SECRET"]
+    CLIENT_ID = None #st.secrets["gauth"]["endpoints"]["GAUTH_ID"]
+    CLIENT_SECRET = None #st.secrets["gauth"]["endpoints"]["GAUTH_SECRET"]
     AUTHORIZE_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
     TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
     REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"

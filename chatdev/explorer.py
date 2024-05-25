@@ -15,7 +15,7 @@ class Explorer:
         #     data = json.load(f)
         #     print(data)
         #     self.api_key = data['openai_api']
-        self.api_key = st.secrets["openai"]["api"]["API"]
+        self.api_key = None #st.secrets["openai"]["api"]["API"]
         self.client = OpenAI(api_key=self.api_key)
 
     def run(self, desc):

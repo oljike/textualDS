@@ -5,14 +5,12 @@ import os
 __version__ = "0.2.2"
 @st.cache_resource
 def init_connection() -> Client:
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
-    try:
-        SUPABASE_URL = st.secrets["connections"]["supabase"]["SUPABASE_URL"],
-        SUPABASE_KEY = st.secrets["connections"]["supabase"]["SUPABASE_KEY"],
-    except:
-        SUPABASE_URL = os.getenv('SUPABASE_URL')
-        SUPABASE_KEY = os.getenv('SUPABASE_KEY')
-
+    if SUPABASE_KEY is None or SUPABASE_URL is None:
+        SUPABASE_URL = st.secrets["connections"]["supabase"]["SUPABASE_URL"]
+        SUPABASE_KEY = st.secrets["connections"]["supabase"]["SUPABASE_KEY"]
 
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
