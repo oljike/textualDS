@@ -34,7 +34,7 @@ class Flow:
         classifier = ChatAgent('classifier', classifier_sys_msg, json_format=True, keep_history=True, fast=False)
 
         chatter_sys_msg = sys_data['chatter'].format(columns=f"{', '.join(self.df.columns)}")
-        chatter = ChatAgent('chatter', chatter_sys_msg, json_format=False, keep_history=True, fast=False)
+        chatter = ChatAgent('chatter', chatter_sys_msg, json_format=False, keep_history=True, fast=True)
 
         planner_format = '''{"description":"the description of the plan","plan":"[a list of numbered plan items]"}'''
         planner_sys_msg = sys_data['planner'].format(desc='', columns=columns_desc, format=planner_format).replace('\n', '')
@@ -57,7 +57,7 @@ class Flow:
 
         # analyze the results
         analyzer_sys_msg = sys_data['analyzer']
-        analyzer = ChatAgent('analyzer', analyzer_sys_msg, json_format=False, keep_history=True, fast=False)
+        analyzer = ChatAgent('analyzer', analyzer_sys_msg, json_format=False, keep_history=True, fast=True)
 
         analyzervis_sys_msg = sys_data['analyzervis']
         analyzervis = ChatAgent('analyzervis', analyzervis_sys_msg, json_format=False, keep_history=True, fast=False)
@@ -177,10 +177,21 @@ class Flow:
 
             return {task: {"result": {"plots": []}, "offtopic": chatter_output}}, None
 
-        if len(classifier_output['new_tasks']) > 2:
+        if len(classifier_output['new_tasks']) > 1:
             task_list = classifier_output['new_tasks']
+
+            # run type test
+            if type(task_list)==str:
+                import ast
+                try:
+                    ast.literal_eval(task_list)
+                except:
+                    task_list = [task]
+
         else:
             task_list = [task]
+
+
 
         print("Task list is ", task_list)
         # task coroutines

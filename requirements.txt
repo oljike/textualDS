@@ -1,4 +1,5 @@
 seaborn
+groq
 scikit-learn
 streamlit
 pandas

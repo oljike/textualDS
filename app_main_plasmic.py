@@ -33,8 +33,8 @@ def display_data(bot_response):
 
     for task, data in bot_response.items():
         print('data', data)
-        with st.chat_message("assistant"):
-            st.markdown(f"Task: {task}")
+        # with st.chat_message("assistant"):
+        #     st.markdown(f"Task: {task}")
     # add new llm here?
 
         # display plots
@@ -44,10 +44,11 @@ def display_data(bot_response):
                     st.image(plot)
 
         with st.chat_message("assistant"):
-            if 'analysisvis' in data and 'analysis' in data:
+            if 'analysisvis' in data:
                 st.markdown(f"Interpretation of plots: {data['analysisvis']}")
+            if 'analysis' in data:
                 st.markdown(f"Short summary: {data['analysis']}")
-            elif 'offtopic' in data:
+            if 'offtopic' in data:
                 st.markdown(data['offtopic'])
 
 
@@ -120,7 +121,7 @@ async def main():
             dataset_option = st.radio("Select one option", ["Upload Dataset", "Choose a toy dataset"])
             if dataset_option == "Upload Dataset":
                 # clear_results()
-                uploaded_file = st.file_uploader("Upload your dataset (if applicable)", type=["csv"], accept_multiple_files=False)
+                uploaded_file = st.file_uploader("Upload your dataset (if applicable)", type=["csv", "xlsx", "xls"], accept_multiple_files=False)
 
                 if uploaded_file:
                     # st.sidebar.write("Filename: ", )
@@ -220,7 +221,6 @@ async def main():
 
         for message in st.session_state.messages:
             if message["role"] == "user":
-
                 with st.chat_message("user"):
                     st.markdown(message["content"])
             else:
@@ -253,10 +253,10 @@ async def main():
             current_quota = extract_quota(client, email)
             if current_quota > 0:
 
-                with st.chat_message("assistant"):
-                    with st.spinner("Analyst is thinking..."):
-                        flow = st.session_state["flow"]
-                        bot_response, dynamic_function, flow = await handle_execution(flow, prompt) #process_user_input(prompt, flow)
+                # with st.chat_message(""):
+                with st.spinner("Analyst is thinking..."):
+                    flow = st.session_state["flow"]
+                    bot_response, dynamic_function, flow = await handle_execution(flow, prompt) #process_user_input(prompt, flow)
                 # bot_response = {'task': {'result':{'plots': ['./plots/AQI_O3.png']}, 'analysis': 'lol', 'analysisvis': 'kek'}}
                 st.session_state["flow"] = flow
             else:

@@ -65,9 +65,9 @@ class ChatAgent():
                 api_key='<this client should never be used directly!>',
             )
             self.aclient = _client.with_options(api_key=self.api_key)
-            self.model = "gpt-4-0125-preview"
+            self.model = "gpt-4o"
 
-        self.encoding = tiktoken.encoding_for_model(self.model)
+        self.encoding = tiktoken.encoding_for_model("gpt-4-0125-preview")
         self.client = OpenAI(api_key=self.api_key)
         self.json_mode = json_format
         self.keep_history = keep_history

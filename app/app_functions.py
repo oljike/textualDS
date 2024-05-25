@@ -4,6 +4,7 @@ import io
 import yaml
 import streamlit as st
 import base64
+import mimetypes
 from PIL import Image
 import numpy as np
 from io import BytesIO
@@ -110,12 +111,30 @@ def detect_encoding(file_content):
 
 
 def process_uploaded_file(uploaded_file):
+    #
+    # file_content = uploaded_file.read()
+    # # Detect the encoding
+    # encoding = detect_encoding(file_content)
+    # # Read the CSV file using the detected encoding
+    # df = pd.read_csv(io.BytesIO(file_content), encoding=encoding)
+    # return df
 
     file_content = uploaded_file.read()
-    # Detect the encoding
-    encoding = detect_encoding(file_content)
-    # Read the CSV file using the detected encoding
-    df = pd.read_csv(io.BytesIO(file_content), encoding=encoding)
+
+    # Detect the file type using mimetypes
+    file_type, _ = mimetypes.guess_type(uploaded_file.name)
+
+    # Check if the file type is CSV
+    if file_type and 'csv' in file_type:
+        # Detect the encoding for CSV files
+        encoding = detect_encoding(file_content)
+        # Read the CSV file using the detected encoding
+        df = pd.read_csv(io.BytesIO(file_content), encoding=encoding)
+    else:
+        # Assume Excel file format if not CSV
+        # Read the Excel file using pandas
+        df = pd.read_excel(io.BytesIO(file_content))
+
     return df
 
 
